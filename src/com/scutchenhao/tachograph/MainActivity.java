@@ -3,17 +3,23 @@ package com.scutchenhao.tachograph;
 import android.os.Bundle;
 import android.os.Environment;
 import android.app.Activity;
+import android.content.Intent;
 import android.view.Menu;
 import java.io.IOException; 
 import android.graphics.PixelFormat; 
 import android.media.MediaRecorder; 
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder; 
 import android.view.SurfaceView; 
 import android.view.View; 
+import android.view.GestureDetector.OnGestureListener;
 import android.view.View.OnClickListener; 
 import android.widget.Button; 
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
+	public final static int TURN_LEFT = 1;
+	public final static int TURN_RIGHT = 2;
 	private Button start;// 开始录制按钮 
     private Button stop;// 停止录制按钮 
     private MediaRecorder mediarecorder;// 录制视频的类 
@@ -28,7 +34,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         // 选择支持半透明模式,在有surfaceview的activity中使用。 
         getWindow().setFormat(PixelFormat.TRANSLUCENT); 
         setContentView(R.layout.activity_main); 
-
+        
+        //手势识别
+		mGestureDetector = new GestureDetector(this, mGestureListener, null);
+        mGestureDetector.setIsLongpressEnabled(true);
+        
         init(); 
 	}
 
@@ -37,7 +47,95 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		getMenuInflater().inflate(R.menu.main, menu);
 		return true;
 	}
+	
+	
+	/*
+	 * 手势识别
+	 */
+	private GestureDetector mGestureDetector;   
+	private OnGestureListener mGestureListener = new OnGestureListener() {
+		@Override
+		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
+				float velocityY) {
+			if (velocityX < -1500)
+				newActivity(MainActivity.TURN_LEFT);
+			else if (velocityX > 1500)
+				newActivity(MainActivity.TURN_RIGHT);
+			return false;
+		}
 
+		@Override
+		public void onLongPress(MotionEvent e) {
+		}
+
+		@Override
+		public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
+				float distanceY) {
+			return false;
+		}
+
+		@Override
+		public void onShowPress(MotionEvent e) {
+		}
+
+		@Override
+		public boolean onSingleTapUp(MotionEvent e) {
+			return false;
+		}
+
+		@Override
+		public boolean onDown(MotionEvent e) {
+			return false;
+		}
+	};
+	
+	//将触摸事件交给mGestureDetector处理，否则无法识别
+	@Override
+	public boolean dispatchTouchEvent(MotionEvent ev) {
+		mGestureDetector.onTouchEvent(ev);
+		return super.dispatchTouchEvent(ev);
+	}
+
+	protected Class<?> rightClass() {
+		return GPSMapActivity.class;
+	}
+
+	protected Class<?> leftClass() {
+		return GPSMapActivity.class;
+	}
+
+	protected Activity my() {
+		return MainActivity.this;
+	}
+    
+	private void newActivity(int dir) {
+		Class<?> nextClass;
+		
+		if (dir == MainActivity.TURN_LEFT)
+			nextClass = rightClass();
+		else 
+			nextClass = leftClass();
+		
+		if (nextClass == null)
+			return;
+		
+		Intent intent = new Intent();
+		intent.setClass(my(), nextClass);
+		intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+		startActivity(intent);
+
+		if (dir == MainActivity.TURN_LEFT)		//设置切换动画，从右边进入，左边退出
+			overridePendingTransition(R.animator.in_from_right, R.animator.out_to_left);
+		if (dir == MainActivity.TURN_RIGHT)	//设置切换动画，从左边边进入，右边边退出
+			overridePendingTransition(R.animator.in_from_left, R.animator.out_to_right);		
+		
+		finish();
+	}    
+	
+	
+	/*
+	 * surface capture
+	 */
 	@Override
 	public void surfaceChanged(SurfaceHolder arg0, int arg1, int arg2, int arg3) {
 		// 将holder，这个holder为开始在oncreat里面取得的holder，将它赋给surfaceHolder 

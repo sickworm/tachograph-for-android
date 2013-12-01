@@ -1,10 +1,18 @@
 package com.scutchenhao.tachograph;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.DateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
@@ -12,6 +20,8 @@ import java.util.List;
 
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.location.GpsSatellite;
@@ -32,20 +42,20 @@ public class MainService extends Service {
 	public static final String FILEDIR = Environment.getExternalStorageDirectory().getPath() + "/SerialPortData/";
 	private FileOutputStream dataFile;
     private BluetoothAdapter mBluetoothAdapter = null;
-    public boolean bluetoothFlag = true;
+    public boolean sendFlag = true;
     public boolean receiveFlag = true;
     public boolean networkAvailableFlag = false;
+    private BluetoothSocket btSocket = null;
     private boolean gpsFlag = false;
     private double latitude = 0;
     private double longitude = 0;
     private double altitude = 0;
     private int firstLocated = 0;
+    private long firstLocatedTime = 0;
+    private int fire = 0;
+    private List<BluetoothDevice> deviceList = new ArrayList<BluetoothDevice>();
     private String log = "";
-//    private boolean aRound = false;
-    //蓝牙串口服务UUID
-//    private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-    
-	// 实例化自定义的Binder类  
+    private List<MyGpsLocation> locationList = new ArrayList<MyGpsLocation>();
     private final IBinder mBinder = new LocalBinder();  
     
     public class LocalBinder extends Binder {  
@@ -54,7 +64,7 @@ public class MainService extends Service {
             return MainService.this;  
         }
     }
-
+    
     @Override
     public IBinder onBind(Intent intent) {
     	return mBinder;  
@@ -64,19 +74,22 @@ public class MainService extends Service {
 	public void onCreate() {
 		super.onCreate();
     	sendLog("程序已启动");
-
+    	
         initSdcard();  
         	
+        
         initNetwork();
 
         initLocation(); 
-        
+   
+		//远程接收数据
+        new ReceiveThread().start();
 	}
     
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
-		bluetoothFlag = false;
+		sendFlag = false;
 		try {
 			if (dataFile != null) {
 				sendLog("关闭文件");
@@ -87,7 +100,7 @@ public class MainService extends Service {
 		} catch (IOException e) {
 			sendLog("文件关闭失败");
 		}
-		sendLog("程序退出");
+		sendLog("程序退出，关闭蓝牙");
     	if (mBluetoothAdapter != null) {
     		while(mBluetoothAdapter.getState() == BluetoothAdapter.STATE_TURNING_ON);
     		mBluetoothAdapter.disable();
@@ -106,14 +119,13 @@ public class MainService extends Service {
     	mIntent.putExtra(UpdateReceiver.DATA, msg);
         this.sendBroadcast(mIntent);
     }
-     
+    
     private void sendGPS(Location location){  
     	Intent mIntent = new Intent(UpdateReceiver.MSG);
     	mIntent.putExtra(UpdateReceiver.DATA_TYPE, UpdateReceiver.GPS_DATA);
     	mIntent.putExtra(UpdateReceiver.DATA, location);
         this.sendBroadcast(mIntent);  
     }
-    
 
     /**
      * SD card
@@ -164,7 +176,19 @@ public class MainService extends Service {
         }
     }
     
-    
+    public class RecordThread extends Thread {
+	    @Override
+	    public void run() {
+	    	long deltaTime = System.currentTimeMillis();
+	        while(sendFlag){
+				if (System.currentTimeMillis() - deltaTime >= 500) {
+					deltaTime = System.currentTimeMillis();
+					new SendThread(":" + latitude + ":" + longitude).start();
+				}
+	        }
+	    }
+    }
+
     /**
      * Network
      */
@@ -177,7 +201,51 @@ public class MainService extends Service {
     		sendLog("网络未连接，无法发送接收数据");
     	}
     }
+    
+    public class ReceiveThread extends Thread {
+    	private long time = 0;
+	    @Override
+	    public void run() {
+	    	while(receiveFlag && networkAvailableFlag) {
+	    		long newTime = System.currentTimeMillis();
+	    		if (newTime - time < 300)
+	    			continue;
+	    		time = newTime;
+	    		
+	    		String data = getData();
 
+	    		if (data.contains("n"))
+	    			return;
+	    		
+	    		int i = data.indexOf(':');
+	    		int j = data.indexOf(':', data.indexOf(':') + 1);
+	    		latitude = Double.parseDouble(data.substring(i + 1, j - 1));
+	    		longitude = Double.parseDouble(data.substring(j + 1));
+	    		Location location = new Location(LocationManager.GPS_PROVIDER);
+	    		location.setLatitude(latitude);
+	    		location.setLongitude(longitude);
+	    		sendGPS(location);
+	    	}
+	    }
+    }
+
+    public class SendThread extends Thread {
+    	String data;
+    	public SendThread(String data) {
+    		this.data = data;
+    	}
+    	
+	    @Override
+	    public void run() {
+	    	if (networkAvailableFlag) {
+	    		String result = sendData(data);
+	    		
+	    		if (!result.equals("ok"))
+	    			sendLog("数据发送失败：" + result);
+	    	}
+	    }
+    }
+    
     private boolean isConnect(Context context) { 
         // 获取手机所有连接管理对象（包括对wi-fi,net等连接的管理） 
 	    try { 
@@ -352,9 +420,11 @@ public class MainService extends Service {
             longitude = location.getLongitude();
             altitude = location.getAltitude();
             if (firstLocated == 1) {
+                firstLocatedTime = System.currentTimeMillis();
             	sendLog("首次定位成功，维度：" +  latitude + "，经度：" + longitude + "，海拔：" + altitude);
         		Toast.makeText(MainService.this, "首次定位成功，维度：" +  latitude + "，经度：" + longitude + "，海拔：" + altitude, Toast.LENGTH_SHORT).show();
             	locationManager.removeUpdates(gprsListener);
+        		locationList.clear();
             	firstLocated++;
             } else {
             	firstLocated++;
@@ -364,7 +434,23 @@ public class MainService extends Service {
             if (firstLocated > 1) {
             	if(altitude == 0)		//gprs定位数据，不够准确，忽略掉
             		return;
+            		
+            	long time = System.currentTimeMillis() - firstLocatedTime;
+	            locationList.add(new MyGpsLocation(latitude, longitude, time, fire));
 	            
+	        /*
+	            MyGpsLocation firstLoction = locationList.get(0);
+	            double distance = Math.abs(latitude - firstLoction.latitude) + Math.abs(longitude - firstLoction.longitude);
+	            if (locationList.size() >= 100 && distance <= 0.001) {		//0.00027 ≈ 30m
+	            	Toast.makeText(this, "完成一圈", Toast.LENGTH_SHORT).show();
+	            	aRound = true;
+	            }
+	            if (aRound && distance >= 0.001) {
+	            	Toast.makeText(this, "重新开始记录", Toast.LENGTH_SHORT).show();
+	            	locationList.clear();
+	            	aRound = false;
+	            }
+	        */
             }
             
         } else {
@@ -372,7 +458,162 @@ public class MainService extends Service {
         }
     }
     
+    /**
+     * Internet
+     */
+	protected String getData() {
+		try {
+			HttpURLConnection connection;
+			URL server;
+			server = new URL("http://datatransfer.duapp.com/hello?id=" + ID);
+			connection = (HttpURLConnection)server.openConnection();
+			connection.setReadTimeout(10 * 1000);
+			connection.setRequestMethod("GET");
+			InputStream inStream = connection.getInputStream();
+			ByteArrayOutputStream data = new ByteArrayOutputStream();		//新建一字节数组输出流
+			byte[] buffer = new byte[1024];		//在内存中开辟一段缓冲区，接受网络输入流
+			int len=0;
+			while((len = inStream.read(buffer)) != -1) {
+				data.write(buffer, 0, len);		//缓冲区满了之后将缓冲区的内容写到输出流
+			}
+			inStream.close();
+			return new String(data.toByteArray(),"utf-8");		//最后可以将得到的输出流转成utf-8编码的字符串，便可进一步处理
+		} catch (MalformedURLException e) {
+			sendLog("URL出错");
+			return "null";
+		} catch (IOException e) {
+			sendLog("远程数据获取失败");
+			return "null";
+		}
+	}
 
+	protected String sendData(String content) {
+		try {
+			HttpURLConnection connection;
+			URL server;
+			server = new URL("http://datatransfer.duapp.com/hello?id=" + ID + "&data=" + content);
+			connection = (HttpURLConnection)server.openConnection();
+			connection.setReadTimeout(10 * 1000);
+			connection.setRequestMethod("GET");
+			InputStream inStream = connection.getInputStream();
+			ByteArrayOutputStream data = new ByteArrayOutputStream();//新建一字节数组输出流
+			byte[] buffer = new byte[1024];//在内存中开辟一段缓冲区，接受网络输入流
+			int len=0;
+			while((len=inStream.read(buffer))!=-1){
+				data.write(buffer, 0, len);//缓冲区满了之后将缓冲区的内容写到输出流
+			}
+			inStream.close();
+			return new String(data.toByteArray(),"utf-8");//最后可以将得到的输出流转成utf-8编码的字符串，便可进一步处理
+		} catch (MalformedURLException e) {
+			sendLog("URL出错");
+			return "";
+		} catch (IOException e) {
+			sendLog("远程数据获取失败");
+			return "";
+		}
+	}
+
+    /**
+     * Draw Location 
+     */
+	public class MyGpsLocation {
+		public double latitude;
+    	public double longitude;
+    	public long time;
+    	public int fire;
+    	
+    	MyGpsLocation(double latitude, double longitude, long time, int fire) {
+    		this.latitude = latitude;
+    		this.longitude = longitude;
+    		this.time = time;
+    		this.fire = fire;
+    	}   	
+    }
+	
+	public void saveLocation() {
+		if(!hasSdcard()) {
+			Toast.makeText(this, "未找到sdcard，储存失败", Toast.LENGTH_SHORT).show();
+			return;
+		}
+        
+		try {
+        	File file = new File(FILEDIR + "location_list.txt");
+        	if (!file.exists()){    
+                 try {
+					file.createNewFile();
+					sendLog("创建GPS文件" + file.toString());
+				} catch (IOException e) {
+					sendLog("创建文件失败");
+					return;
+				}    
+            } else {
+            	if(!file.delete()) {
+					sendLog("删除原有文件失败");
+					return;
+            	} else {
+            		try {
+						file.createNewFile();
+						sendLog("创建GPS文件" + file.toString());
+						
+					} catch (IOException e) {
+						sendLog("创建文件失败");
+						return;
+					}
+            	}
+            }
+        	FileOutputStream locationData = new FileOutputStream(file);
+        	for(MyGpsLocation i: locationList) {
+        		try {
+					locationData.write((i.time + "," + i.latitude + "," + i.longitude + "," + i.fire + "\n").getBytes());
+				} catch (IOException e) {
+					sendLog("写入位置数据失败");
+					return;
+				}
+        	}
+		} catch (FileNotFoundException e) {
+			sendLog("创建文件失败");
+			return;
+		}
+		
+		Toast.makeText(this, "储存成功，共储存" + locationList.size() + "个GPS信息", Toast.LENGTH_SHORT).show();
+	}
+	
+	public List<MyGpsLocation> loadLocation() {
+        try {
+        	File file = new File(FILEDIR + "location_list.txt");
+        	List<MyGpsLocation> drawList = new ArrayList<MyGpsLocation>();
+        	if (!file.exists()){    
+				sendLog("无位置数据文件");   
+            } else {
+            	 BufferedReader locationData = new BufferedReader(new FileReader(file));
+            	 try {
+            		while (true) {
+            			String str = locationData.readLine();
+            			if (str == null)
+            				break;
+            			
+            			 int i = str.indexOf(',');
+            			 int j = str.indexOf(',', i + 1);
+            			 int k = str.indexOf(',', j + 1);
+            			 long time = Long.parseLong(str.substring(0, i));
+            			 double latitude = Double.parseDouble(str.substring(i + 1, j));
+            			 double longitude = Double.parseDouble(str.substring(j + 1, k));
+            			 int fire = Integer.parseInt(str.substring(k + 1));
+            			 drawList.add(new MyGpsLocation(latitude, longitude, time, fire));
+            		}
+				} catch (IOException e) {
+					sendLog("位置数据格式错误");
+					return null;
+				}
+            }
+            return drawList;
+        } catch (FileNotFoundException e) {
+			sendLog("创建文件失败");
+			return null;
+		}
+        
+	}
+	
     /**
      * Activity调用
      */
@@ -388,13 +629,33 @@ public class MainService extends Service {
 		return longitude;
 	}
 	
-    protected boolean getRecordFlag() {
-    	return recordFlag;
+    protected List<MyGpsLocation> getLocationList() {
+    	return loadLocation();
     }
 
+    protected void setRecordFlag(boolean valve) {
+    	recordFlag = valve;
+    }
+    
+    protected void refresh() {
+		deviceList.clear();
+        try {
+        	if (btSocket != null) {
+            	sendLog("正在关闭原链接。。");
+        		btSocket.close();
+        	}
+            sendFlag = false;		//关闭蓝牙读线程
+        } catch (IOException e2) {
+        	sendLog("套接字关闭失败");
+        }
+        
+    	mBluetoothAdapter.cancelDiscovery();
+    	mBluetoothAdapter.startDiscovery();
+    	sendLog("刷新设备列表......");
+    }
+    
     protected String getLog() {
     	return log;
     }    
-    
     
 }
