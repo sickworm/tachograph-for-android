@@ -562,14 +562,17 @@ public class MainService extends Service {
             	}
             }
         	FileOutputStream locationData = new FileOutputStream(file);
-        	for(MyGpsLocation i: locationList) {
-        		try {
+    		try {
+    			for(MyGpsLocation i: locationList) {
 					locationData.write((i.time + "," + i.latitude + "," + i.longitude + "," + i.fire + "\n").getBytes());
-				} catch (IOException e) {
-					sendLog("写入位置数据失败");
-					return;
+
 				}
+    			locationData.close();
+        	} catch (IOException e) {
+				sendLog("写入位置数据失败");
+				return;
         	}
+        	
 		} catch (FileNotFoundException e) {
 			sendLog("创建文件失败");
 			return;
@@ -601,6 +604,7 @@ public class MainService extends Service {
             			 int fire = Integer.parseInt(str.substring(k + 1));
             			 drawList.add(new MyGpsLocation(latitude, longitude, time, fire));
             		}
+            		locationData.close();
 				} catch (IOException e) {
 					sendLog("位置数据格式错误");
 					return null;
