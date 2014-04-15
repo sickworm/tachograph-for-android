@@ -5,41 +5,49 @@ import android.os.Environment;
 import android.app.Activity;
 import android.content.Intent;
 import android.view.Menu;
-import java.io.IOException; 
-import android.graphics.PixelFormat; 
-import android.media.MediaRecorder; 
+
+import java.io.File;
+import java.util.Date;
+import java.util.Locale;
+
+import android.graphics.PixelFormat;
+import android.media.CamcorderProfile;
+import android.media.MediaRecorder;
+import android.media.MediaRecorder.OnInfoListener;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
-import android.view.SurfaceHolder; 
-import android.view.SurfaceView; 
-import android.view.View; 
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+import android.view.View;
 import android.view.GestureDetector.OnGestureListener;
-import android.view.View.OnClickListener; 
-import android.widget.Button; 
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.Toast;
 
-public class MainActivity extends Activity implements SurfaceHolder.Callback {
+public class MainActivity extends Activity {
+	public final static String PATH = Environment.getExternalStorageDirectory().getPath() + "/ScutTachograph/";
 	public final static int TURN_LEFT = 1;
 	public final static int TURN_RIGHT = 2;
 	private Button start;// 开始录制按钮 
     private Button stop;// 停止录制按钮 
-    private MediaRecorder mediarecorder;// 录制视频的类 
-    private SurfaceView surfaceview;// 显示视频的控件 
+    private MediaRecorder mediaRecorder;// 录制视频的类 
+    private SurfaceView surfaceView;// 显示视频的控件 
     // 用来显示视频的一个接口，我靠不用还不行，也就是说用mediaRecorder录制视频还得给个界面看 
-    private SurfaceHolder surfaceHolder;
+    private boolean isRecording;
     
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		
-        // 选择支持半透明模式,在有surfaceview的activity中使用。 
-        getWindow().setFormat(PixelFormat.TRANSLUCENT); 
-        setContentView(R.layout.activity_main); 
+        // 选择支持半透明模式,在有surfaceView的activity中使用。 
+        getWindow().setFormat(PixelFormat.TRANSLUCENT);
+        setContentView(R.layout.activity_main);
         
         //手势识别
 		mGestureDetector = new GestureDetector(this, mGestureListener, null);
         mGestureDetector.setIsLongpressEnabled(true);
         
-        init(); 
+        layoutInit();
 	}
 
 	@Override
@@ -52,7 +60,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	/*
 	 * 手势识别
 	 */
-	private GestureDetector mGestureDetector;   
+	private GestureDetector mGestureDetector;  
 	private OnGestureListener mGestureListener = new OnGestureListener() {
 		@Override
 		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
@@ -133,83 +141,119 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	}    
 	
 	
-	/*
-	 * surface capture
-	 */
-	@Override
-	public void surfaceChanged(SurfaceHolder arg0, int arg1, int arg2, int arg3) {
-		// 将holder，这个holder为开始在oncreat里面取得的holder，将它赋给surfaceHolder 
-        surfaceHolder = arg0; 
-	}
-
-	@Override
-	public void surfaceCreated(SurfaceHolder holder) {
-		// 将holder，这个holder为开始在onCreat里面取得的holder，将它赋给surfaceHolder 	
-        surfaceHolder = holder; 
-	}
-
-	@Override
-	public void surfaceDestroyed(SurfaceHolder holder) {
-		// surfaceDestroyed的时候同时对象设置为null 
-        surfaceview = null; 
-        surfaceHolder = null; 
-        mediarecorder = null; 
-	}
-	
-	@SuppressWarnings("deprecation")
-	private void init() { 
-        start = (Button) this.findViewById(R.id.start); 
-        stop = (Button) this.findViewById(R.id.stop); 
-        start.setOnClickListener(new TestVideoListener()); 
-        stop.setOnClickListener(new TestVideoListener()); 
-        surfaceview = (SurfaceView) this.findViewById(R.id.surfaceview); 
-        SurfaceHolder holder = surfaceview.getHolder();// 取得holder 
-        holder.addCallback(this); // holder加入回调接口 
-        //setType必须设置，要不出错. 
-        holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS); 
+	private void layoutInit() { 
+        start = (Button) this.findViewById(R.id.start);
+        stop = (Button) this.findViewById(R.id.stop);
+        start.setOnClickListener(new TestVideoListener());
+        stop.setOnClickListener(new TestVideoListener());
+        setRecordState(false);
+        surfaceView = (SurfaceView) this.findViewById(R.id.surfaceview);
 
     } 
+	
+	@Override
+	protected void onStop() {
+		super.onStop();
+		if(isRecording)
+			stopRecording();
+	}
+
+	private void setRecordState(boolean state) {
+		if(state) {
+			start.setEnabled(false);
+	        stop.setEnabled(true);
+	        isRecording = true;
+		} else {
+			start.setEnabled(true);
+	        stop.setEnabled(false);
+	        isRecording = false;
+		}
+	}
+	
+	private void mediaRecorderInit() {
+        mediaRecorder = new MediaRecorder();// 创建mediaRecorder对象 
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
+        mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        // 设置视频录制的分辨率。必须放在设置编码和格式的后面，否则报错 
+        mediaRecorder.setVideoSize(320, 240);
+        mediaRecorder.setVideoFrameRate(5);
+        mediaRecorder.setPreviewDisplay(surfaceView.getHolder().getSurface());
+        // 检测存储目录环境
+        File file = new File(PATH);
+        if(!file.isDirectory() || !file.exists()) {
+        	if(!file.mkdir())
+        		Toast.makeText(this, "目录初始化失败", Toast.LENGTH_SHORT).show();
+        }
+        // 设置视频文件输出的路径 
+        String fileName = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss", Locale.US).format(new Date()) + ".3gp";
+        mediaRecorder.setOutputFile(PATH  + fileName);
+        
+        mediaRecorder.setOnInfoListener(new OnInfoListener() {                 
+        	@Override
+        	public void onInfo(MediaRecorder mr, int what, int extra) {
+        		// 发生错误，停止录制
+        		mediaRecorder.stop();
+        		mediaRecorder.release();
+        		mediaRecorder = null;
+        		setRecordState(false);
+        		String err = "";
+        		switch (what) {
+        		case MediaRecorder.MEDIA_RECORDER_INFO_UNKNOWN:
+        			err = "MEDIA_RECORDER_INFO_UNKNOWN";
+        			break;
+        		case MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED:
+        			err = "MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED";
+        			break;
+        		case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
+        			err = "MEDIA_RECORDER_INFO_MAX_DURATION_REACHED";
+        			break;
+        		default:
+        			break;
+        		}
+        		Toast.makeText(MainActivity.this, "录制出错:" + err, Toast.LENGTH_SHORT).show();
+                 }
+             });
+	}
 	
 	class TestVideoListener implements OnClickListener { 
         @Override 
         public void onClick(View v) { 
             if (v == start) { 
-                mediarecorder = new MediaRecorder();// 创建mediarecorder对象 
-                // 设置录制视频源为Camera(相机) 
-                mediarecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA); 
-                // 设置录制完成后视频的封装格式THREE_GPP为3gp.MPEG_4为mp4 
-                mediarecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP); 
-                // 设置录制的视频编码h263 h264 
-                mediarecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264); 
-                // 设置视频录制的分辨率。必须放在设置编码和格式的后面，否则报错 
-                mediarecorder.setVideoSize(176, 144); 
-                // 设置录制的视频帧率。必须放在设置编码和格式的后面，否则报错 
-                mediarecorder.setVideoFrameRate(20); 
-                mediarecorder.setPreviewDisplay(surfaceHolder.getSurface()); 
-                // 设置视频文件输出的路径 
-                mediarecorder.setOutputFile(Environment.getExternalStorageDirectory().getPath() + "/love.3gp"); 
-
-                try { 
-                    mediarecorder.prepare(); 
-                    mediarecorder.start(); 
-
-                } catch (IllegalStateException e) { 
-                    e.printStackTrace(); 
-
-                } catch (IOException e) { 
-                    e.printStackTrace(); 
-                } 
+            	startRecording();
             } 
             if (v == stop) { 
-                if (mediarecorder != null) { 
-                    // 停止录制 
-                    mediarecorder.stop(); 
-                    // 释放资源 
-                    mediarecorder.release(); 
-                    mediarecorder = null; 
-                } 
+            	stopRecording();
             } 
         } 
 
     } 
+	
+	private void startRecording() {
+    	setRecordState(true);
+        mediaRecorderInit();
+        try { 
+            mediaRecorder.prepare();
+            mediaRecorder.start();
+            Toast.makeText(MainActivity.this, "开始录像", Toast.LENGTH_SHORT).show();
+        } catch (IllegalStateException e) { 
+            e.printStackTrace();
+        } catch (Exception e) { 
+            e.printStackTrace();
+        } 
+	}
+	
+	private void stopRecording() {
+    	setRecordState(false);
+        if (mediaRecorder != null) { 
+            // 停止录制 
+            mediaRecorder.stop();
+            // 释放资源 
+            mediaRecorder.release();
+            mediaRecorder = null;
+            Toast.makeText(MainActivity.this, "停止录像，并保存文件", Toast.LENGTH_SHORT).show();
+        } 
+	}
 }
