@@ -160,6 +160,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		log("onPause");
 		if(isRecording)
 			stopRecording();
+		else
+			stopPreview();
 	}
 
 	@Override
