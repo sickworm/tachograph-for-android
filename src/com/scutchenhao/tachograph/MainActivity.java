@@ -7,11 +7,12 @@ import android.content.Intent;
 import android.view.Menu;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Date;
 import java.util.Locale;
 
 import android.graphics.PixelFormat;
-import android.media.CamcorderProfile;
+import android.hardware.Camera;
 import android.media.MediaRecorder;
 import android.media.MediaRecorder.OnInfoListener;
 import android.view.GestureDetector;
@@ -24,30 +25,27 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.Toast;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	public final static String PATH = Environment.getExternalStorageDirectory().getPath() + "/ScutTachograph/";
 	public final static int TURN_LEFT = 1;
 	public final static int TURN_RIGHT = 2;
-	private Button start;// 开始录制按钮 
-    private Button stop;// 停止录制按钮 
-    private MediaRecorder mediaRecorder;// 录制视频的类 
-    private SurfaceView surfaceView;// 显示视频的控件 
-    // 用来显示视频的一个接口，我靠不用还不行，也就是说用mediaRecorder录制视频还得给个界面看 
+	private Button start;// 开始录制按钮
+    private Button stop;// 停止录制按钮
+    private MediaRecorder mMediaRecorder;// 录制视频的类
+    private SurfaceView mSurfaceView;// 显示视频的控件
+    // 用来显示视频的一个接口，我靠不用还不行，也就是说用mMediaRecorder录制视频还得给个界面看
     private boolean isRecording;
-    
+    private Camera mCamera;  
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		
-        // 选择支持半透明模式,在有surfaceView的activity中使用。 
+        // 选择支持半透明模式,在有mSurfaceView的activity中使用。
         getWindow().setFormat(PixelFormat.TRANSLUCENT);
         setContentView(R.layout.activity_main);
-        
-        //手势识别
-		mGestureDetector = new GestureDetector(this, mGestureListener, null);
-        mGestureDetector.setIsLongpressEnabled(true);
-        
-        layoutInit();
+
+        init();
 	}
 
 	@Override
@@ -60,7 +58,7 @@ public class MainActivity extends Activity {
 	/*
 	 * 手势识别
 	 */
-	private GestureDetector mGestureDetector;  
+	private GestureDetector mGestureDetector;
 	private OnGestureListener mGestureListener = new OnGestureListener() {
 		@Override
 		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
@@ -115,13 +113,13 @@ public class MainActivity extends Activity {
 	protected Activity my() {
 		return MainActivity.this;
 	}
-    
+
 	private void newActivity(int dir) {
 		Class<?> nextClass;
 		
 		if (dir == MainActivity.TURN_LEFT)
 			nextClass = rightClass();
-		else 
+		else
 			nextClass = leftClass();
 		
 		if (nextClass == null)
@@ -138,18 +136,21 @@ public class MainActivity extends Activity {
 			overridePendingTransition(R.animator.in_from_left, R.animator.out_to_right);		
 		
 		finish();
-	}    
+	}
 	
 	
-	private void layoutInit() { 
+	private void init() {
         start = (Button) this.findViewById(R.id.start);
         stop = (Button) this.findViewById(R.id.stop);
         start.setOnClickListener(new TestVideoListener());
         stop.setOnClickListener(new TestVideoListener());
         setRecordState(false);
-        surfaceView = (SurfaceView) this.findViewById(R.id.surfaceview);
-
-    } 
+        mSurfaceView = (SurfaceView) this.findViewById(R.id.surfaceview);
+        mSurfaceView.getHolder().addCallback(this);
+        //手势识别
+		mGestureDetector = new GestureDetector(this, mGestureListener, null);
+        mGestureDetector.setIsLongpressEnabled(true);
+    }
 	
 	@Override
 	protected void onStop() {
@@ -170,34 +171,34 @@ public class MainActivity extends Activity {
 		}
 	}
 	
-	private void mediaRecorderInit() {
-        mediaRecorder = new MediaRecorder();// 创建mediaRecorder对象 
-        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
-        mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        // 设置视频录制的分辨率。必须放在设置编码和格式的后面，否则报错 
-        mediaRecorder.setVideoSize(320, 240);
-        mediaRecorder.setVideoFrameRate(5);
-        mediaRecorder.setPreviewDisplay(surfaceView.getHolder().getSurface());
+	private void mMediaRecorderInit() {
+        mMediaRecorder = new MediaRecorder();// 创建mMediaRecorder对象
+        mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+        mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
+        mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        // 设置视频录制的分辨率。必须放在设置编码和格式的后面，否则报错
+        mMediaRecorder.setVideoSize(320, 240);
+        mMediaRecorder.setVideoFrameRate(5);
+        mMediaRecorder.setPreviewDisplay(mSurfaceView.getHolder().getSurface());
         // 检测存储目录环境
         File file = new File(PATH);
         if(!file.isDirectory() || !file.exists()) {
         	if(!file.mkdir())
         		Toast.makeText(this, "目录初始化失败", Toast.LENGTH_SHORT).show();
         }
-        // 设置视频文件输出的路径 
+        // 设置视频文件输出的路径
         String fileName = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss", Locale.US).format(new Date()) + ".3gp";
-        mediaRecorder.setOutputFile(PATH  + fileName);
-        
-        mediaRecorder.setOnInfoListener(new OnInfoListener() {                 
+        mMediaRecorder.setOutputFile(PATH  + fileName);
+
+        mMediaRecorder.setOnInfoListener(new OnInfoListener() {
         	@Override
         	public void onInfo(MediaRecorder mr, int what, int extra) {
         		// 发生错误，停止录制
-        		mediaRecorder.stop();
-        		mediaRecorder.release();
-        		mediaRecorder = null;
+        		mMediaRecorder.stop();
+        		mMediaRecorder.release();
+        		mMediaRecorder = null;
         		setRecordState(false);
         		String err = "";
         		switch (what) {
@@ -218,42 +219,82 @@ public class MainActivity extends Activity {
              });
 	}
 	
-	class TestVideoListener implements OnClickListener { 
-        @Override 
-        public void onClick(View v) { 
-            if (v == start) { 
+	class TestVideoListener implements OnClickListener {
+        @Override
+        public void onClick(View v) {
+            if (v == start) {
             	startRecording();
-            } 
-            if (v == stop) { 
+            }
+            if (v == stop) {
             	stopRecording();
-            } 
-        } 
+            }
+        }
 
-    } 
+    }
 	
 	private void startRecording() {
+		stopPreview();
     	setRecordState(true);
-        mediaRecorderInit();
-        try { 
-            mediaRecorder.prepare();
-            mediaRecorder.start();
+        mMediaRecorderInit();
+        try {
+            mMediaRecorder.prepare();
+            mMediaRecorder.start();
             Toast.makeText(MainActivity.this, "开始录像", Toast.LENGTH_SHORT).show();
-        } catch (IllegalStateException e) { 
+        } catch (Exception e) {
             e.printStackTrace();
-        } catch (Exception e) { 
-            e.printStackTrace();
-        } 
+        }
 	}
 	
 	private void stopRecording() {
     	setRecordState(false);
-        if (mediaRecorder != null) { 
-            // 停止录制 
-            mediaRecorder.stop();
-            // 释放资源 
-            mediaRecorder.release();
-            mediaRecorder = null;
+        if (mMediaRecorder != null) {
+            // 停止录制
+            mMediaRecorder.stop();
+            // 释放资源
+            mMediaRecorder.release();
+            mMediaRecorder = null;
             Toast.makeText(MainActivity.this, "停止录像，并保存文件", Toast.LENGTH_SHORT).show();
-        } 
+        }
+		startPreview(mSurfaceView.getHolder());
+	}
+	
+	private void startPreview(SurfaceHolder holder) {
+		try {
+	        mCamera = Camera.open();
+            mCamera.setPreviewDisplay(holder);  
+    		mCamera.startPreview();
+        } catch (IOException e) {   
+            e.printStackTrace();
+        }
+	}
+	
+	private void stopPreview() {
+		mCamera.stopPreview();
+		mCamera.release();
+		mCamera = null;
+	}
+
+	@Override
+	public void surfaceChanged(SurfaceHolder holder, int format, int width,
+			int height) {
+		System.out.println("surfaceChanged");
+		
+		if (mSurfaceView.getHolder().getSurface() == null){   
+	          return;   
+        }
+		
+		if(mCamera != null)
+			stopPreview();
+    	startPreview(holder);
+	}
+
+	@Override
+	public void surfaceCreated(SurfaceHolder holder) {
+		System.out.println("surfaceCreated");
+	}
+
+	@Override
+	public void surfaceDestroyed(SurfaceHolder holder) {
+		System.out.println("surfaceDestroyed");
 	}
 }
