@@ -216,33 +216,9 @@ public class GPSMapActivity extends Activity {
 		}
 	};
 	
-	
-	
-	protected Class<?> rightClass() {
-		return MainActivity.class;
-	}
-
-	protected Class<?> leftClass() {
-		return MainActivity.class;
-	}
-
-	protected Activity my() {
-		return GPSMapActivity.this;
-	}
-    
 	private void newActivity(int dir) {
-		Class<?> nextClass;
-		
-		if (dir == MainActivity.TURN_LEFT)
-			nextClass = rightClass();
-		else 
-			nextClass = leftClass();
-		
-		if (nextClass == null)
-			return;
-		
 		Intent intent = new Intent();
-		intent.setClass(my(), nextClass);
+		intent.setClass(GPSMapActivity.this, MainActivity.class);
 		intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 		startActivity(intent);
 
