@@ -1,15 +1,11 @@
 package com.scutchenhao.tachograph;
 
 import android.os.Bundle;
-import android.os.Environment;
 import android.app.Activity;
 import android.content.Intent;
 import android.view.Menu;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.Date;
-import java.util.Locale;
 
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
@@ -27,19 +23,22 @@ import android.widget.Toast;
 import android.util.Log;
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
-	public final static String PATH = Environment.getExternalStorageDirectory().getPath() + "/ScutTachograph/";
 	public final static int TURN_LEFT = 1;
 	public final static int TURN_RIGHT = 2;
-	private final static boolean DEBUG = true;
-	private final static String TAG = "ScutTachograph";
+	protected final static String TAG = "ScutTachograph";
+	protected final static boolean DEBUG = true;
 	private final static int LOG_TOAST = 1;
-	private String fileName = "";
 	private Button start;
     private Button stop;
     private MediaRecorder mMediaRecorder;
     private SurfaceView mSurfaceView;
     private boolean isRecording;
-    private Camera mCamera;  
+    private Camera mCamera;
+    private StorageManager mStorageManager;
+	private static int storageSetting = 500;	//MB
+	private static int remainStorage = 10;	//MB
+	private static int timeSetting = 10;		//s
+	private static int frameSetting = 10;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -60,6 +59,20 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         mGestureDetector.setIsLongpressEnabled(true);
 
         mMediaRecorder = new MediaRecorder();
+        
+        mStorageManager = new StorageManager(storageSetting, remainStorage);
+        int ret = mStorageManager.check();
+        switch(ret) {
+        case StorageManager.STORAGE_AVAILABLE:
+        	log("储存空间可用");
+        	break;
+        case StorageManager.STORAGE_UNMOUNT:
+        case StorageManager.STORAGE_NOT_ENOUGH:
+        default:
+        	log("储存空间异常");
+        	start.setEnabled(false);
+        	break;
+        }
 	}
 
 	@Override
@@ -117,33 +130,25 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		}
 	}
 	
-	private void mediaRecorderConfig() {
+	private boolean mediaRecorderConfig() {
         mCamera.unlock();
         mMediaRecorder.setCamera(mCamera);
         mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
         mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        mMediaRecorder.setMaxDuration(10000);
+        mMediaRecorder.setMaxDuration(timeSetting * 1000);
         mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         // 设置视频录制的分辨率。必须放在设置编码和格式的后面，否则报错
         mMediaRecorder.setVideoSize(320, 240);
-        mMediaRecorder.setVideoFrameRate(5);
+        mMediaRecorder.setVideoFrameRate(frameSetting);
         
-        // 检测存储目录环境
-        File dir = new File(PATH);
-        if(!dir.isDirectory() || !dir.exists()) {
-        	if(!dir.mkdir())
-            	log("目录初始化失败", LOG_TOAST);
-            	start.setEnabled(false);
+        if (!mStorageManager.createRecordFile()) {
+            log("创建录像文件失败", LOG_TOAST);
+            return false;
+        } else {
+            mMediaRecorder.setOutputFile(StorageManager.TEMP_FILE_NAME);
         }
-        fileName = "tmpfile.mp4";
-        File file = new File(PATH + fileName);
-        if(file.exists())
-        	file.delete();
-        
-//        fileName = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss", Locale.CHINESE).format(new Date()) + ".mp4";
-        mMediaRecorder.setOutputFile(PATH  + fileName);
 
         mMediaRecorder.setOnInfoListener(new OnInfoListener() {
         	@Override
@@ -166,6 +171,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         		}
                  }
              });
+        
+        return true;
 	}
 	
 	class TestVideoListener implements OnClickListener {
@@ -182,8 +189,24 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 	
 	private void startRecording() {
+		int ret = mStorageManager.refreshDir();
+		switch(ret) {
+        case StorageManager.STORAGE_AVAILABLE:
+        	log("储存空间可用");
+        	break;
+        case StorageManager.STORAGE_UNMOUNT:
+        case StorageManager.STORAGE_NOT_ENOUGH:
+        default:
+        	log("储存空间异常");
+        	start.setEnabled(false);
+        	return;
+        }
     	setRecordState(true);
-        mediaRecorderConfig();
+    	if (!mediaRecorderConfig()) {
+    		start.setEnabled(false);
+    		return;
+    	}
+
         try {
             mMediaRecorder.prepare();
             mMediaRecorder.start();
@@ -201,16 +224,33 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         if (mMediaRecorder != null) {
             mMediaRecorder.stop();
             mMediaRecorder.reset();
+            mStorageManager.refreshDir();
             log("停止录像，保存文件", LOG_TOAST);
         }
 	}
 	
 	private void restartRecording() {
+		mStorageManager.refreshDir();
         try {
 	        if (mMediaRecorder != null) {
 	            mMediaRecorder.stop();
 	            mMediaRecorder.reset();
-		        mediaRecorderConfig();
+	            int ret = mStorageManager.refreshDir();
+	            switch(ret) {
+	            case StorageManager.STORAGE_AVAILABLE:
+	            	log("储存空间可用");
+	            	break;
+	            case StorageManager.STORAGE_UNMOUNT:
+	            case StorageManager.STORAGE_NOT_ENOUGH:
+	            default:
+	            	log("储存空间异常");
+	            	start.setEnabled(false);
+	            	return;
+	            }
+	        	if (!mediaRecorderConfig()) {
+	        		start.setEnabled(false);
+	        		return;
+	        	}
 	            mMediaRecorder.prepare();
 	            mMediaRecorder.start();
 	        }
@@ -309,12 +349,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		intent.setClass(MainActivity.this, GPSMapActivity.class);
 		intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 		startActivity(intent);
-
 		if (dir == MainActivity.TURN_LEFT)		//设置切换动画，从右边进入，左边退出
 			overridePendingTransition(R.animator.in_from_right, R.animator.out_to_left);
 		if (dir == MainActivity.TURN_RIGHT)		//设置切换动画，从左边边进入，右边边退出
-			overridePendingTransition(R.animator.in_from_left, R.animator.out_to_right);		
-		
+			overridePendingTransition(R.animator.in_from_left, R.animator.out_to_right);
 		finish();
 	}
 	
