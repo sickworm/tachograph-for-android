@@ -89,6 +89,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         	start.setEnabled(false);
         	break;
         }
+        
 	}
 
 	@Override
@@ -167,8 +168,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         log("录像格式：" + widthSetting + "x" + heightSetting);
         log("录像时间：" + timeSetting + "s");
         
-        if (!mStorageManager.createRecordFile()) {
-            log("创建录像文件失败", LOG_TOAST);
+        if (!mStorageManager.checkNewRecordFile()) {
+            log("录像文件错误", LOG_TOAST);
             return false;
         } else {
             mMediaRecorder.setOutputFile(mStorageManager.getFileName());
@@ -213,7 +214,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 	
 	private void startRecording() {
-		int ret = mStorageManager.refreshDir();
+		int ret = mStorageManager.refreshDir(this, false);
 		switch(ret) {
         case StorageManager.STORAGE_AVAILABLE:
         	log("储存空间可用");
@@ -244,23 +245,24 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
 	}
 	
-	private void stopRecording() {
+	private void stopRecording() {		
+		//stop when start time less than 1s may lead software crash:stop failed: -1007
+		//should delay some time
     	setRecordState(false);
         if (mMediaRecorder != null) {
             mMediaRecorder.stop();
             mMediaRecorder.reset();
-            mStorageManager.refreshDir();
+            mStorageManager.refreshDir(this, true);
             log("停止录像，保存文件", LOG_TOAST);
         }
 	}
 	
 	private void restartRecording() {
-		mStorageManager.refreshDir();
         try {
 	        if (mMediaRecorder != null) {
 	            mMediaRecorder.stop();
 	            mMediaRecorder.reset();
-	            int ret = mStorageManager.refreshDir();
+	            int ret = mStorageManager.refreshDir(this, true);
 	            switch(ret) {
 	            case StorageManager.STORAGE_AVAILABLE:
 	            	log("储存空间可用");

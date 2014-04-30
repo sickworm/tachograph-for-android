@@ -2,11 +2,13 @@ package com.scutchenhao.tachograph;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.Date;
 import java.util.Locale;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Environment;
 import android.os.StatFs;
 import android.util.Log;
@@ -29,7 +31,7 @@ public class StorageManager {
 		this.remainStorage = remainStorage;
 	}
 	
-	protected boolean createRecordFile() {
+	protected boolean checkNewRecordFile() {
         File dir = new File(PATH);
         if(!dir.isDirectory() || !dir.exists()) {
         	if(!dir.mkdir())
@@ -41,12 +43,6 @@ public class StorageManager {
         File file = new File(fileName);
         if(file.exists())
         	file.delete();
-        try {
-			file.createNewFile();
-		} catch (IOException e) {
-			e.printStackTrace();
-	        return false;
-		}
         return true;
 	}
 	
@@ -71,17 +67,27 @@ public class StorageManager {
 		return STORAGE_AVAILABLE;
 	}
 	
-	protected int refreshDir() {
+	protected int refreshDir(Context context, boolean afterRecording) {
 		int ret = check();
 		if (ret != STORAGE_AVAILABLE)
 			return ret;
-		if (availStorage + remainStorage >= size)
-			;
+
+		if (afterRecording) {			
+			if (availStorage + remainStorage >= size)
+				;//should do something
+			fileScan(context);
+		}
 		return ret;
 	}
 	
+	
 	protected void resetStorage(int size) {
 		this.size = size;
+	}
+
+	public void fileScan(Context context){
+        Uri data = Uri.parse("file:///" + fileName);
+        context.sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, data));
 	}
 
     @SuppressLint("NewApi")
