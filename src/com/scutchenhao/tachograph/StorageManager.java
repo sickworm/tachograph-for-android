@@ -14,7 +14,7 @@ import android.os.StatFs;
 import android.util.Log;
 
 public class StorageManager {
-	public final static String TAG = MainActivity.TAG;
+	public final static String TAG = "ScutTachograph:StorageManager";
 	public final static boolean DEBUG = MainActivity.DEBUG;
 	public final static String PATH = Environment.getExternalStorageDirectory().getPath() + "/ScutTachograph/";
 	public final static int STORAGE_UNMOUNT = 1;

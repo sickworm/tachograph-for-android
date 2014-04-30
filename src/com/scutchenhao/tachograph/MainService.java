@@ -19,9 +19,6 @@ import java.util.Iterator;
 import java.util.List;
 
 import android.app.Service;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.location.GpsSatellite;
@@ -35,17 +32,19 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
+import android.util.Log;
 import android.widget.Toast;
 
 public class MainService extends Service {
-	public static final String ID = "3";
-	public static final String FILEDIR = Environment.getExternalStorageDirectory().getPath() + "/SerialPortData/";
+	public static final String TAG = "ScutTachograph:Service";
+	public static final boolean DEBUG = MainActivity.DEBUG;
+	public static final String ID = "car";
+	public static final String URL = "http://datatransfer.duapp.com/hello";
+	public static final String FILEDIR = StorageManager.PATH + "SerialPortData/";
 	private FileOutputStream dataFile;
-    private BluetoothAdapter mBluetoothAdapter = null;
     public boolean sendFlag = true;
     public boolean receiveFlag = true;
     public boolean networkAvailableFlag = false;
-    private BluetoothSocket btSocket = null;
     private boolean gpsFlag = false;
     private double latitude = 0;
     private double longitude = 0;
@@ -53,7 +52,6 @@ public class MainService extends Service {
     private int firstLocated = 0;
     private long firstLocatedTime = 0;
     private int fire = 0;
-    private List<BluetoothDevice> deviceList = new ArrayList<BluetoothDevice>();
     private String log = "";
     private List<MyGpsLocation> locationList = new ArrayList<MyGpsLocation>();
     private final IBinder mBinder = new LocalBinder();  
@@ -100,11 +98,7 @@ public class MainService extends Service {
 		} catch (IOException e) {
 			sendLog("文件关闭失败");
 		}
-		sendLog("程序退出，关闭蓝牙");
-    	if (mBluetoothAdapter != null) {
-    		while(mBluetoothAdapter.getState() == BluetoothAdapter.STATE_TURNING_ON);
-    		mBluetoothAdapter.disable();
-    	}
+		sendLog("程序退出");
     	gpsFlag = false;
     	locationManager.removeGpsStatusListener(gpsStatusListener);
     	locationManager.removeUpdates(gpsListener);
@@ -112,13 +106,16 @@ public class MainService extends Service {
     	
 	}
 	
-    private void sendLog(String msg){  
+    private void sendLog(String msg){
+    	if (DEBUG)
+    		Log.v(TAG, msg);
     	log = log.concat(msg + '\n');
     	Intent mIntent = new Intent(UpdateReceiver.MSG);
     	mIntent.putExtra(UpdateReceiver.DATA_TYPE, UpdateReceiver.LOG_DATA);
     	mIntent.putExtra(UpdateReceiver.DATA, msg);
         this.sendBroadcast(mIntent);
     }
+    
     
     private void sendGPS(Location location){  
     	Intent mIntent = new Intent(UpdateReceiver.MSG);
@@ -421,36 +418,23 @@ public class MainService extends Service {
             altitude = location.getAltitude();
             if (firstLocated == 1) {
                 firstLocatedTime = System.currentTimeMillis();
-            	sendLog("首次定位成功，维度：" +  latitude + "，经度：" + longitude + "，海拔：" + altitude);
-        		Toast.makeText(MainService.this, "首次定位成功，维度：" +  latitude + "，经度：" + longitude + "，海拔：" + altitude, Toast.LENGTH_SHORT).show();
+            	sendLog("首次定位成功，维度：" +  latitude + "，经度：" + longitude);
+        		Toast.makeText(MainService.this, "首次定位成功，维度：" +  latitude + "，经度：" + longitude, Toast.LENGTH_SHORT).show();
             	locationManager.removeUpdates(gprsListener);
         		locationList.clear();
             	firstLocated++;
+                new RecordThread().start();
             } else {
             	firstLocated++;
             }
             sendGPS(location);
             
             if (firstLocated > 1) {
-            	if(altitude == 0)		//gprs定位数据，不够准确，忽略掉
+            	if(altitude == 0)		//基站定位数据，不够准确，忽略掉
             		return;
             		
             	long time = System.currentTimeMillis() - firstLocatedTime;
 	            locationList.add(new MyGpsLocation(latitude, longitude, time, fire));
-	            
-	        /*
-	            MyGpsLocation firstLoction = locationList.get(0);
-	            double distance = Math.abs(latitude - firstLoction.latitude) + Math.abs(longitude - firstLoction.longitude);
-	            if (locationList.size() >= 100 && distance <= 0.001) {		//0.00027 ≈ 30m
-	            	Toast.makeText(this, "完成一圈", Toast.LENGTH_SHORT).show();
-	            	aRound = true;
-	            }
-	            if (aRound && distance >= 0.001) {
-	            	Toast.makeText(this, "重新开始记录", Toast.LENGTH_SHORT).show();
-	            	locationList.clear();
-	            	aRound = false;
-	            }
-	        */
             }
             
         } else {
@@ -465,7 +449,7 @@ public class MainService extends Service {
 		try {
 			HttpURLConnection connection;
 			URL server;
-			server = new URL("http://datatransfer.duapp.com/hello?id=" + ID);
+			server = new URL(URL + "?id=" + ID);
 			connection = (HttpURLConnection)server.openConnection();
 			connection.setReadTimeout(10 * 1000);
 			connection.setRequestMethod("GET");
@@ -491,7 +475,7 @@ public class MainService extends Service {
 		try {
 			HttpURLConnection connection;
 			URL server;
-			server = new URL("http://datatransfer.duapp.com/hello?id=" + ID + "&data=" + content);
+			server = new URL(URL + "?id=" + ID + "&data=" + content);
 			connection = (HttpURLConnection)server.openConnection();
 			connection.setReadTimeout(10 * 1000);
 			connection.setRequestMethod("GET");
@@ -520,13 +504,11 @@ public class MainService extends Service {
 		public double latitude;
     	public double longitude;
     	public long time;
-    	public int fire;
     	
     	MyGpsLocation(double latitude, double longitude, long time, int fire) {
     		this.latitude = latitude;
     		this.longitude = longitude;
     		this.time = time;
-    		this.fire = fire;
     	}   	
     }
 	
@@ -564,8 +546,7 @@ public class MainService extends Service {
         	FileOutputStream locationData = new FileOutputStream(file);
     		try {
     			for(MyGpsLocation i: locationList) {
-					locationData.write((i.time + "," + i.latitude + "," + i.longitude + "," + i.fire + "\n").getBytes());
-
+					locationData.write((i.time + "," + i.latitude + "," + i.longitude + "\n").getBytes());
 				}
     			locationData.close();
         	} catch (IOException e) {
@@ -621,10 +602,6 @@ public class MainService extends Service {
     /**
      * Activity调用
      */
-	protected double getAltitude() {
-		return altitude;
-	}
-
 	protected double getLatitude() {
 		return latitude;
 	}
@@ -637,29 +614,4 @@ public class MainService extends Service {
     	return loadLocation();
     }
 
-    protected void setRecordFlag(boolean valve) {
-    	recordFlag = valve;
-    }
-    
-    protected void refresh() {
-		deviceList.clear();
-        try {
-        	if (btSocket != null) {
-            	sendLog("正在关闭原链接。。");
-        		btSocket.close();
-        	}
-            sendFlag = false;		//关闭蓝牙读线程
-        } catch (IOException e2) {
-        	sendLog("套接字关闭失败");
-        }
-        
-    	mBluetoothAdapter.cancelDiscovery();
-    	mBluetoothAdapter.startDiscovery();
-    	sendLog("刷新设备列表......");
-    }
-    
-    protected String getLog() {
-    	return log;
-    }    
-    
 }

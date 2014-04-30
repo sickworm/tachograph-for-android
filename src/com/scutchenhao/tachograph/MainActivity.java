@@ -1,11 +1,15 @@
 package com.scutchenhao.tachograph;
 
 import android.os.Bundle;
+import android.os.IBinder;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.view.Menu;
@@ -13,6 +17,8 @@ import android.view.Menu;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.scutchenhao.tachograph.MainService.LocalBinder;
 
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
@@ -36,7 +42,7 @@ import android.util.Log;
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	public final static int TURN_LEFT = 1;
 	public final static int TURN_RIGHT = 2;
-	protected final static String TAG = "ScutTachograph";
+	protected final static String TAG = "ScutTachograph:Activity";
 	protected final static boolean DEBUG = true;
 	private final static int LOG_TOAST = 1;
 	private Button start;
@@ -93,6 +99,16 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	}
 
 	@Override
+	protected void onStart() {
+		super.onStart();
+
+		//绑定并启动Service
+        Intent intent = new Intent();
+	    intent.setClass(this, MainService.class);
+	    bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+	}
+
+	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		getMenuInflater().inflate(R.menu.main, menu);
 		return true;
@@ -112,6 +128,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 			stopRecording();
 		else
 			stopPreview();
+
+		unbindService(mConnection);
 	}
 	
 	@Override
@@ -453,4 +471,22 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         recordTime.setSelection(timeSettingPos);
 	}
 
+	//RefreshService关联
+    @SuppressWarnings("unused")
+	private MainService mService;
+    private LocalBinder serviceBinder;
+    private ServiceConnection mConnection = new ServiceConnection() {  
+        @Override  
+        public void onServiceConnected(ComponentName className,  
+                IBinder service) {
+        		serviceBinder = (LocalBinder)service;  
+                mService = serviceBinder.getService();
+        }
+
+        @Override  
+        public void onServiceDisconnected(ComponentName arg0) {  
+        }  
+    };
+    
+    
 }

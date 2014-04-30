@@ -72,20 +72,11 @@ public class GPSMapActivity extends Activity {
         public boolean handleMessage(Message msg) {
         	int order = msg.getData().getInt("order");
     		MyGpsLocation current = locationList.get(order);
-    		if(current.fire == 1) {
-	    		map.addCircle(new CircleOptions()
-					.center(new LatLng(current.latitude, current.longitude))
-	    			.fillColor(Color.YELLOW)
-	    			.strokeColor(0xddffff00)
-	    			.radius(3));
-    		} else {
-    			map.addCircle(new CircleOptions()
+    		map.addCircle(new CircleOptions()
 				.center(new LatLng(current.latitude, current.longitude))
-    			.fillColor(Color.RED)
-    			.strokeColor(0xddff0000)
+    			.fillColor(Color.YELLOW)
+    			.strokeColor(0xddffff00)
     			.radius(3));
-    		}
-    		
         	if(order != 0) {
         		MyGpsLocation past = locationList.get(order - 1);
         		map.addPolyline(new PolylineOptions()
