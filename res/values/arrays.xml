@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer-array name="storage">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+        <item>20</item>
+        <item>30</item>
+        <item>50</item>
+        <item>100</item>
+    </integer-array>
+    
+    <string-array name="storage_name">
+        <item>1G</item>
+        <item>2G</item>
+        <item>3G</item>
+        <item>4G</item>
+        <item>5G</item>
+        <item>6G</item>
+        <item>7G</item>
+        <item>8G</item>
+        <item>9G</item>
+        <item>10G</item>
+        <item>20G</item>
+        <item>30G</item>
+        <item>50G</item>
+        <item>100G</item>
+    </string-array>
+    
+    <integer-array name="time">
+        <item>60</item>
+        <item>120</item>
+        <item>180</item>
+        <item>240</item>
+        <item>300</item>
+        <item>360</item>
+        <item>420</item>
+        <item>480</item>
+        <item>540</item>
+        <item>600</item>
+        <item>1200</item>
+        <item>1800</item>
+    </integer-array>
+    
+    <string-array name="time_name">
+        <item>1min</item>
+        <item>2min</item>
+        <item>3min</item>
+        <item>4min</item>
+        <item>5min</item>
+        <item>6min</item>
+        <item>7min</item>
+        <item>8min</item>
+        <item>9min</item>
+        <item>10min</item>
+        <item>20min</item>
+        <item>30min</item>
+    </string-array>
+</resources>

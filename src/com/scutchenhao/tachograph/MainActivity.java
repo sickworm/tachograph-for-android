@@ -1,24 +1,35 @@
 package com.scutchenhao.tachograph;
 
 import android.os.Bundle;
+import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.view.Menu;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
+import android.hardware.Camera.Size;
 import android.media.MediaRecorder;
 import android.media.MediaRecorder.OnInfoListener;
 import android.view.GestureDetector;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.GestureDetector.OnGestureListener;
 import android.view.View.OnClickListener;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.Spinner;
 import android.widget.Toast;
 import android.util.Log;
 
@@ -35,10 +46,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private boolean isRecording;
     private Camera mCamera;
     private StorageManager mStorageManager;
-	private static int storageSetting = 500;	//MB
-	private static int remainStorage = 10;	//MB
-	private static int timeSetting = 10;		//s
-	private static int frameSetting = 10;
+	private int storageSettingPos = 0;
+	private int qualitySettingPos = 0;
+	private int timeSettingPos = 0;
+	private int storageSetting = 1024;	//MB
+	private int remainStorage = 10;		//MB
+	private int timeSetting = 10;		//s
+	private int widthSetting = 320;
+	private int heightSetting = 240;
+	private List<Size> supportedVideoSizes;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -106,6 +122,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
 		
     	startPreview(holder);
+
+		Camera.Parameters parameters = mCamera.getParameters();
+		supportedVideoSizes = parameters.getSupportedVideoSizes();
 	}
 
 	@Override
@@ -130,8 +149,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		}
 	}
 	
+	@SuppressLint("NewApi")
 	private boolean mediaRecorderConfig() {
+        loadSettings();
         mCamera.unlock();
+        if (android.os.Build.VERSION.SDK_INT > android.os.Build.VERSION_CODES.JELLY_BEAN_MR1)
+        	mCamera.enableShutterSound(false);
         mMediaRecorder.setCamera(mCamera);
         mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
@@ -140,14 +163,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         // 设置视频录制的分辨率。必须放在设置编码和格式的后面，否则报错
-        mMediaRecorder.setVideoSize(320, 240);
-        mMediaRecorder.setVideoFrameRate(frameSetting);
+        mMediaRecorder.setVideoSize(widthSetting, heightSetting);
+        log("录像格式：" + widthSetting + "x" + heightSetting);
+        log("录像时间：" + timeSetting + "s");
         
         if (!mStorageManager.createRecordFile()) {
             log("创建录像文件失败", LOG_TOAST);
             return false;
         } else {
-            mMediaRecorder.setOutputFile(StorageManager.TEMP_FILE_NAME);
+            mMediaRecorder.setOutputFile(mStorageManager.getFileName());
         }
 
         mMediaRecorder.setOnInfoListener(new OnInfoListener() {
@@ -203,6 +227,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
     	setRecordState(true);
     	if (!mediaRecorderConfig()) {
+    		stop.setEnabled(false);
     		start.setEnabled(false);
     		return;
     	}
@@ -248,6 +273,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	            	return;
 	            }
 	        	if (!mediaRecorderConfig()) {
+	        		stop.setEnabled(false);
 	        		start.setEnabled(false);
 	        		return;
 	        	}
@@ -275,6 +301,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	
 	private void stopPreview() {
 		log("stopPreview");
+		if(mCamera == null)
+			return;
 		mCamera.stopPreview();
 		mCamera.release();
 		mCamera = null;
@@ -356,4 +384,71 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		finish();
 	}
 	
+	public void loadSettings() {
+		SharedPreferences settings = this.getPreferences(MODE_PRIVATE);
+		storageSettingPos = settings.getInt("storage_pos", storageSettingPos);
+		qualitySettingPos = settings.getInt("quality_pos", qualitySettingPos);
+		timeSettingPos = settings.getInt("time_pos", timeSettingPos);
+		storageSetting = settings.getInt("storage", storageSetting);
+		remainStorage = settings.getInt("remain", remainStorage);
+		timeSetting = settings.getInt("time", timeSetting);
+		widthSetting = settings.getInt("width", widthSetting);
+		heightSetting = settings.getInt("height", heightSetting);
+	}
+	
+	public void settings(View view) {
+        final View preferenceView = LayoutInflater.from(this).inflate(  
+                R.layout.settings_dialog, null); 
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this); 
+        builder.setView(preferenceView);
+        builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				SharedPreferences settings = getPreferences(MODE_PRIVATE);
+		        Editor mEditor = settings.edit();
+		        
+		        Spinner recordQuality = (Spinner) preferenceView.findViewById(R.id.quality_select);
+		        int pos = recordQuality.getSelectedItemPosition();
+		        Size size = supportedVideoSizes.get(pos);
+		        mEditor.putInt("quality_pos", pos);
+		        mEditor.putInt("width", size.width);
+		        mEditor.putInt("height", size.height);
+
+		        Spinner recordStorage = (Spinner) preferenceView.findViewById(R.id.storage_select);
+		        pos = recordStorage.getSelectedItemPosition();
+		        mEditor.putInt("storage_pos", pos);
+		        int[] storage = getResources().getIntArray(R.array.storage);
+		        mEditor.putInt("storage", storage[pos]);
+
+		        Spinner recordTime = (Spinner) preferenceView.findViewById(R.id.time_select);
+		        pos = recordTime.getSelectedItemPosition();
+		        mEditor.putInt("time_pos", pos);
+		        int[] time = getResources().getIntArray(R.array.time);
+		        mEditor.putInt("time", time[pos]);
+		        
+		        mEditor.commit();
+			}
+        });
+        loadDialogPreferences(preferenceView);
+        builder.show();
+	}
+	
+	private void loadDialogPreferences(View preferenceView) {
+        loadSettings();
+		List<String> sizeList = new ArrayList<String>();
+		for(Size s : supportedVideoSizes) {
+			sizeList.add(s.width + "x" + s.height);
+		}
+        Spinner recordQuality = (Spinner) preferenceView.findViewById(R.id.quality_select);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, sizeList);
+        recordQuality.setAdapter(adapter);
+        recordQuality.setSelection(qualitySettingPos);
+        
+        Spinner recordStorage = (Spinner) preferenceView.findViewById(R.id.storage_select);
+        recordStorage.setSelection(storageSettingPos);
+        
+        Spinner recordTime = (Spinner) preferenceView.findViewById(R.id.time_select);
+        recordTime.setSelection(timeSettingPos);
+	}
+
 }

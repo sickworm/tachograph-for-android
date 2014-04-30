@@ -2,6 +2,7 @@ package com.scutchenhao.tachograph;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Date;
 import java.util.Locale;
 
@@ -14,7 +15,6 @@ public class StorageManager {
 	public final static String TAG = MainActivity.TAG;
 	public final static boolean DEBUG = MainActivity.DEBUG;
 	public final static String PATH = Environment.getExternalStorageDirectory().getPath() + "/ScutTachograph/";
-	public final static String TEMP_FILE_NAME = PATH + "tmpfile.mp4";
 	public final static int STORAGE_UNMOUNT = 1;
 	public final static int STORAGE_NOT_ENOUGH = 2;
 	public final static int STORAGE_AVAILABLE = 3;
@@ -22,6 +22,7 @@ public class StorageManager {
 	private int size;	//MB
 	private int remainStorage;	//MB
 	private long availStorage = 0;	//MB
+	private String fileName = "";
 	
 	protected StorageManager(int size, int remainStorage) {
 		this.size = size;
@@ -34,10 +35,23 @@ public class StorageManager {
         	if(!dir.mkdir())
         		return false;
         }
-        File file = new File(TEMP_FILE_NAME);
+        
+        String shortFileName = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss", Locale.CHINESE).format(new Date()) + ".mp4";
+        fileName = PATH + shortFileName;
+        File file = new File(fileName);
         if(file.exists())
         	file.delete();
+        try {
+			file.createNewFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+	        return false;
+		}
         return true;
+	}
+	
+	protected String getFileName() {
+		return fileName;
 	}
 	
 	protected int check() {
@@ -58,7 +72,6 @@ public class StorageManager {
 	}
 	
 	protected int refreshDir() {
-		renameFile();
 		int ret = check();
 		if (ret != STORAGE_AVAILABLE)
 			return ret;
@@ -67,16 +80,8 @@ public class StorageManager {
 		return ret;
 	}
 	
-	protected void renameFile() {
-        File file = new File(TEMP_FILE_NAME);
-        String renameFileName = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss", Locale.CHINESE).format(new Date()) + ".mp4";
-        File renameFile = new File(PATH + renameFileName);
-        if(file.exists())
-        	file.renameTo(renameFile);
-	}
-	
-	protected void freeStorage() {
-		
+	protected void resetStorage(int size) {
+		this.size = size;
 	}
 
     @SuppressLint("NewApi")
@@ -86,9 +91,8 @@ public class StorageManager {
         if (Environment.MEDIA_MOUNTED.equals(state)) {
             File sdcardDir = Environment.getExternalStorageDirectory();  
             StatFs sf = new StatFs(sdcardDir.getPath());
-            int currentapiVersion = android.os.Build.VERSION.SDK_INT;
             long blockSize, availCount;
-            if (currentapiVersion < android.os.Build.VERSION_CODES.KITKAT) {
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.KITKAT) {
 	            blockSize = sf.getBlockSize();
 	            availCount = sf.getAvailableBlocks();
             } else {
