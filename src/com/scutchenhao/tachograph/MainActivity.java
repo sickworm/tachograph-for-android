@@ -26,6 +26,7 @@ import android.hardware.Camera.Size;
 import android.media.MediaRecorder;
 import android.media.MediaRecorder.OnInfoListener;
 import android.view.GestureDetector;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -42,6 +43,7 @@ import android.util.Log;
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	public final static int TURN_LEFT = 1;
 	public final static int TURN_RIGHT = 2;
+	public final static int DRAG_SENSITIVITY = 2500;
 	protected final static String TAG = "ScutTachograph:Activity";
 	protected final static boolean DEBUG = true;
 	private final static int LOG_TOAST = 1;
@@ -55,6 +57,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	private int storageSettingPos = 0;
 	private int qualitySettingPos = 0;
 	private int timeSettingPos = 0;
+	private long backTime = 0;
 	private int storageSetting = 1024;	//MB
 	private int remainStorage = 10;		//MB
 	private int timeSetting = 10;		//s
@@ -130,6 +133,23 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 			stopPreview();
 
 		unbindService(mConnection);
+	}
+	
+
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		if (keyCode == KeyEvent.KEYCODE_BACK) {
+			long newTime = System.currentTimeMillis();
+			if (newTime - backTime <= 5000) {
+				return super.onKeyDown(keyCode, event);
+			} else {
+				backTime = newTime;
+				Toast.makeText(this, "再按一次退出", Toast.LENGTH_SHORT).show();
+				return true;
+			}
+        }
+
+		return true;
 	}
 	
 	@Override
@@ -353,9 +373,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		@Override
 		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
 				float velocityY) {
-			if (velocityX < -1500)
+			if (velocityX < -DRAG_SENSITIVITY)
 				newActivity(MainActivity.TURN_LEFT);
-			else if (velocityX > 1500)
+			else if (velocityX > DRAG_SENSITIVITY)
 				newActivity(MainActivity.TURN_RIGHT);
 			return false;
 		}

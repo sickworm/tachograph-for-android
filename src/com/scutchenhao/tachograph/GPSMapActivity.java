@@ -61,7 +61,7 @@ public class GPSMapActivity extends Activity {
 		        .position(new LatLng(location.getLatitude(), location.getLongitude()))
 		        .title("Œ“µƒŒª÷√"));
 		        if (firstTime) {
-			        map.moveCamera(CameraUpdateFactory.zoomTo(18));
+			        map.moveCamera(CameraUpdateFactory.zoomTo(15));
 		        	map.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
 		        	firstTime = false;
 		        }
