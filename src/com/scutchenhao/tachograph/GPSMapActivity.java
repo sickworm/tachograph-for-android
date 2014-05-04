@@ -65,6 +65,7 @@ public class GPSMapActivity extends Activity {
 		        	map.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
 		        	firstTime = false;
 		        }
+		        System.out.println(location.getLatitude() + " " + location.getLongitude());
 	    	}
 	    }
     }; 
@@ -149,9 +150,9 @@ public class GPSMapActivity extends Activity {
 	    bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
 	    
     	//接受Service广播信息
-        IntentFilter filter = new IntentFilter(); 
-        filter.addAction(UpdateReceiver.MSG);  
-        this.registerReceiver(receiver, filter);  
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(UpdateReceiver.MSG);
+        this.registerReceiver(receiver, filter);
 		
 	}
 

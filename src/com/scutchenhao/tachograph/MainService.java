@@ -41,6 +41,7 @@ public class MainService extends Service {
 	public static final String ID = "car";
 	public static final String URL = "http://datatransfer.duapp.com/hello";
 	public static final String FILEDIR = StorageManager.LOG_PATH;
+	public static final int SEND_DELTA_TIME = 2000;
 	private File gpsFile;
 	private FileOutputStream gpsFileStream;
     public boolean sendFlag = true;
@@ -174,7 +175,7 @@ public class MainService extends Service {
 	    public void run() {
 	    	long deltaTime = System.currentTimeMillis();
 	        while(sendFlag){
-				if (System.currentTimeMillis() - deltaTime >= 500) {
+				if (System.currentTimeMillis() - deltaTime >= SEND_DELTA_TIME) {
 					deltaTime = System.currentTimeMillis();
 					new SendThread(":" + latitude + ":" + longitude).start();
 				}
@@ -375,10 +376,10 @@ public class MainService extends Service {
         
 		//gprs定位
         if (list.contains(LocationManager.NETWORK_PROVIDER))
-        	locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 500, 0, gprsListener);
+        	locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, SEND_DELTA_TIME, 0, gprsListener);
 		//GPS 定位
         if (list.contains(LocationManager.GPS_PROVIDER))
-        	locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 500, 0, gpsListener);
+        	locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, SEND_DELTA_TIME, 0, gpsListener);
 
         
         Thread gpsThread = new Thread() {
@@ -386,7 +387,7 @@ public class MainService extends Service {
 			public void run() {
 				while(gpsFlag) {
 					try {
-						sleep(500);
+						sleep(SEND_DELTA_TIME);
 					} catch (InterruptedException e1) {
 						sendLog("GPS写线程出错");
 					}

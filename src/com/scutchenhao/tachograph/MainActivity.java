@@ -160,10 +160,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         mMediaRecorder = new MediaRecorder();
         mCamera = Camera.open();
+		Camera.Parameters parameters = mCamera.getParameters();
+		supportedVideoSizes = parameters.getSupportedVideoSizes();
+    	loadSettings();
+        
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1)
         	mCamera.enableShutterSound(false);
         
-        mStorageManager = new StorageManager(storageSetting, remainStorage);
+        mStorageManager = new StorageManager(this, storageSetting, remainStorage);
         int ret = mStorageManager.check();
         switch(ret) {
         case StorageManager.STORAGE_AVAILABLE:
@@ -211,8 +215,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		log("onStop");
 		if(isRecording)
 			stopRecording();
-		stopPreview();
-
+		
+		mCamera.stopPreview();
 		mCamera.release();
 		mCamera = null;
 		mMediaRecorder.release();
@@ -242,14 +246,13 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	public void surfaceChanged(SurfaceHolder holder, int format, int width,
 			int height) {
     	log("surfaceChanged");
-		if (mSurfaceView.getHolder().getSurface() == null){   
-	          return;   
-        }
-		
-    	startPreview(holder);
-
-		Camera.Parameters parameters = mCamera.getParameters();
-		supportedVideoSizes = parameters.getSupportedVideoSizes();
+		try {
+			mCamera.setPreviewDisplay(holder);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		mCamera.autoFocus(null);
+    	mCamera.startPreview();
 	}
 
 	@Override
@@ -277,7 +280,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	}
 	
 	private boolean mediaRecorderConfig() {
-        loadSettings();
         mCamera.unlock();
         mMediaRecorder.setCamera(mCamera);
         mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
@@ -338,7 +340,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 	
 	private void startRecording() {
-		int ret = mStorageManager.refreshDir(this, false);
+		int ret = mStorageManager.refreshDir(false);
 		switch(ret) {
         case StorageManager.STORAGE_AVAILABLE:
         	log("储存空间可用");
@@ -376,7 +378,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         if (mMediaRecorder != null) {
             mMediaRecorder.stop();
             mMediaRecorder.reset();
-            mStorageManager.refreshDir(this, true);
+            mStorageManager.refreshDir(true);
             log("停止录像，保存文件", LOG_TOAST);
         }
 	}
@@ -386,7 +388,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	        if (mMediaRecorder != null) {
 	            mMediaRecorder.stop();
 	            mMediaRecorder.reset();
-	            int ret = mStorageManager.refreshDir(this, true);
+	            int ret = mStorageManager.refreshDir(true);
 	            switch(ret) {
 	            case StorageManager.STORAGE_AVAILABLE:
 	            	log("储存空间可用");
@@ -410,24 +412,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         } catch (Exception e) {
             e.printStackTrace();
         }
-	}
-	
-	private void startPreview(SurfaceHolder holder) {
-		log("startPreview");
-		try {
-            mCamera.setPreviewDisplay(holder);  
-    		mCamera.startPreview();
-    		mCamera.autoFocus(null);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-	}
-	
-	private void stopPreview() {
-		log("stopPreview");
-		if(mCamera == null)
-			return;
-		mCamera.stopPreview();
 	}
 	
 	private void log(String log) {
@@ -515,6 +499,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		timeSetting = settings.getInt("time", getResources().getIntArray(R.array.time)[0]);
 		widthSetting = settings.getInt("width", supportedVideoSizes.get(0).width);
 		heightSetting = settings.getInt("height", supportedVideoSizes.get(0).height);
+		
+		mCamera.stopPreview();
+		Camera.Parameters parameters = mCamera.getParameters();
+    	parameters.setPreviewSize(widthSetting, heightSetting);
+    	mCamera.setParameters(parameters);
+    	mCamera.startPreview();
 	}
 	
 	private void settings() {
@@ -549,6 +539,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		        
 		        mEditor.commit();
 		        mStorageManager.resetStorage(storage[pos]);
+		        
+		        loadSettings();
 			}
         });
         loadDialogPreferences(preferenceView);

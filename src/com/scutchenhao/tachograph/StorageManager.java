@@ -28,12 +28,14 @@ public class StorageManager {
 	public final static int CREATE_DIR_FAILED = 4;
 	public final static boolean TYPE_HAS_SUBDIR = true;
 	public final static boolean TYPE_NO_SUBDIR = false;
+	private Context mContext;	//MB
 	private int size;	//MB
 	private int remainStorage;	//MB
 	private long availStorage = 0;	//MB
 	private String fileName = "";
 	
-	protected StorageManager(int size, int remainStorage) {
+	protected StorageManager(Context mContext, int size, int remainStorage) {
+		this.mContext = mContext;
 		this.size = size;
 		this.remainStorage = remainStorage;
 	}
@@ -77,7 +79,7 @@ public class StorageManager {
 		return STORAGE_AVAILABLE;
 	}
 	
-	protected int refreshDir(Context context, boolean afterRecording) {
+	protected int refreshDir(boolean afterRecording) {
 		int ret = check();
 		if (ret != STORAGE_AVAILABLE)
 			return ret;
@@ -85,7 +87,7 @@ public class StorageManager {
 		if (afterRecording) {
 			if (availStorage + remainStorage >= size)
 				;//should do something
-			fileScan(context);
+			fileScan(fileName);
 		}
 		return ret;
 	}
@@ -94,9 +96,9 @@ public class StorageManager {
 		this.size = size;
 	}
 
-	public void fileScan(Context context){
-        Uri data = Uri.parse("file:///" + fileName);
-        context.sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, data));
+	public void fileScan(String file){
+        Uri data = Uri.parse("file:///" + file);
+        mContext.sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, data));
 	}
 
 	public void savePhoto(byte[] data) {
@@ -113,6 +115,7 @@ public class StorageManager {
 			file.createNewFile();
 	    	FileOutputStream photoData = new FileOutputStream(file);
 	    	photoData.write(data);
+	    	fileScan(file.getPath());
 	    	photoData.close();
 		} catch (IOException e) {
 			log("±£´æÍ¼Æ¬Ê§°Ü");
