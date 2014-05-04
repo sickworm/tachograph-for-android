@@ -58,17 +58,17 @@ public class MainService extends Service {
     private List<MyGpsLocation> locationList = new ArrayList<MyGpsLocation>();
     private final IBinder mBinder = new LocalBinder();
     private boolean hasGpsData = false;
-    
-    public class LocalBinder extends Binder {  
-        MainService getService() {  
-            // 返回Activity所关联的Service对象，这样在Activity里，就可调用Service里的一些公用方法和公用属性  
-            return MainService.this;  
+
+    public class LocalBinder extends Binder {
+        MainService getService() {
+            // 返回Activity所关联的Service对象，这样在Activity里，就可调用Service里的一些公用方法和公用属性
+            return MainService.this;
         }
     }
-    
+
     @Override
     public IBinder onBind(Intent intent) {
-    	return mBinder;  
+    	return mBinder;
     }
 
 	@Override
@@ -76,17 +76,17 @@ public class MainService extends Service {
 		super.onCreate();
     	sendLog("程序已启动");
     	
-        initSdcard();  
+        initSdcard();
         	
-        
+
         initNetwork();
 
-        initLocation(); 
-   
+        initLocation();
+
 		//远程接收数据
         new ReceiveThread().start();
 	}
-    
+
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
@@ -118,13 +118,13 @@ public class MainService extends Service {
     	mIntent.putExtra(UpdateReceiver.DATA, msg);
         this.sendBroadcast(mIntent);
     }
-    
-    
-    private void sendGPS(Location location){  
+
+
+    private void sendGPS(Location location){
     	Intent mIntent = new Intent(UpdateReceiver.MSG);
     	mIntent.putExtra(UpdateReceiver.DATA_TYPE, UpdateReceiver.GPS_DATA);
     	mIntent.putExtra(UpdateReceiver.DATA, location);
-        this.sendBroadcast(mIntent);  
+        this.sendBroadcast(mIntent);
     }
 
     /**
@@ -143,15 +143,15 @@ public class MainService extends Service {
 	        try {
 	            String fileName = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss", Locale.CHINESE).format(new Date()) + ".txt";
 	        	gpsFile = new File(FILEDIR + fileName);
-	        	if (!gpsFile.exists()){    
+	        	if (!gpsFile.exists()){
 	                 try {
 	                	 gpsFile.createNewFile();
 						sendLog("创建记录文件" + gpsFile.toString());
 					} catch (IOException e) {
 						sendLog("创建文件失败");
 						return;
-					}    
-	            }    
+					}
+	            }
 	        	gpsFileStream = new FileOutputStream(gpsFile);
 			} catch (FileNotFoundException e) {
 				sendLog("创建文件失败");
@@ -160,7 +160,7 @@ public class MainService extends Service {
         }
 
     }
-    
+
     public static boolean hasSdcard() {
         String status = Environment.getExternalStorageState();
         if (status.equals(Environment.MEDIA_MOUNTED)) {
@@ -169,7 +169,7 @@ public class MainService extends Service {
             return false;
         }
     }
-    
+
     public class RecordThread extends Thread {
 	    @Override
 	    public void run() {
@@ -195,7 +195,7 @@ public class MainService extends Service {
     		sendLog("网络未连接，无法发送接收数据");
     	}
     }
-    
+
     public class ReceiveThread extends Thread {
     	private long time = 0;
 	    @Override
@@ -239,27 +239,27 @@ public class MainService extends Service {
 	    	}
 	    }
     }
-    
-    private boolean isConnect(Context context) { 
-        // 获取手机所有连接管理对象（包括对wi-fi,net等连接的管理） 
-	    try { 
-	        ConnectivityManager connectivity = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE); 
-	        if (connectivity != null) { 
-	            // 获取网络连接管理的对象 
-	            NetworkInfo info = connectivity.getActiveNetworkInfo(); 
-	            if (info != null&& info.isConnected()) { 
-	                // 判断当前网络是否已经连接 
-	                if (info.getState() == NetworkInfo.State.CONNECTED) { 
-	                    return true; 
-	                } 
-	            } 
-	        } 
-	    } catch (Exception e) { 
+
+    private boolean isConnect(Context context) {
+        // 获取手机所有连接管理对象（包括对wi-fi,net等连接的管理）
+	    try {
+	        ConnectivityManager connectivity = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+	        if (connectivity != null) {
+	            // 获取网络连接管理的对象
+	            NetworkInfo info = connectivity.getActiveNetworkInfo();
+	            if (info != null&& info.isConnected()) {
+	                // 判断当前网络是否已经连接
+	                if (info.getState() == NetworkInfo.State.CONNECTED) {
+	                    return true;
+	                }
+	            }
+	        }
+	    } catch (Exception e) {
 	    	sendLog("获取网络状态出错");
-	    } 
-        return false; 
-    } 
-    
+	    }
+        return false;
+    }
+
     /**
      * GPS
      */
@@ -310,8 +310,8 @@ public class MainService extends Service {
 				Bundle extras) {
 		}
     	
-    };    
-    
+    };
+
     private GpsStatus.Listener gpsStatusListener = new GpsStatus.Listener() {
     	private int count = -1;
 		@Override
@@ -328,17 +328,17 @@ public class MainService extends Service {
                 GpsStatus gpsStatus=locationManager.getGpsStatus(null);
                 //获取卫星颗数的默认最大值
                 int maxSatellites = gpsStatus.getMaxSatellites();
-                //创建一个迭代器保存所有卫星 
+                //创建一个迭代器保存所有卫星
                 Iterator<GpsSatellite> iters = gpsStatus.getSatellites().iterator();
-                int newCount = 0;     
-                while (iters.hasNext() && newCount <= maxSatellites) {     
-                	newCount++;     
-                }   
+                int newCount = 0;
+                while (iters.hasNext() && newCount <= maxSatellites) {
+                	newCount++;
+                }
                 if (count != newCount) {
                 	sendLog("搜索到：" + newCount + "颗卫星");
                 	count = newCount;
                 }
-                
+
                 break;
             //定位启动
             case GpsStatus.GPS_EVENT_STARTED:
@@ -360,7 +360,7 @@ public class MainService extends Service {
             }
 		}
     };
-    
+
     private void initLocation() {
     	gpsFlag = true;
 	    locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
@@ -369,11 +369,11 @@ public class MainService extends Service {
         } else {
         	sendLog("GPS模块关闭，请手动打开");
         }
-        
+
         // 设置监听器，自动更新的最小时间为间隔N秒(1秒为1*1000，这样写主要为了方便)或最小位移变化超过N米
         locationManager.addGpsStatusListener(gpsStatusListener);
         List<String> list = locationManager.getAllProviders();
-        
+
 		//gprs定位
         if (list.contains(LocationManager.NETWORK_PROVIDER))
         	locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, SEND_DELTA_TIME, 0, gprsListener);
@@ -381,7 +381,7 @@ public class MainService extends Service {
         if (list.contains(LocationManager.GPS_PROVIDER))
         	locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, SEND_DELTA_TIME, 0, gpsListener);
 
-        
+
         Thread gpsThread = new Thread() {
 			@Override
 			public void run() {
@@ -426,7 +426,7 @@ public class MainService extends Service {
             	firstLocated++;
             }
             sendGPS(location);
-            
+
             if (firstLocated > 1) {
             	if(altitude == 0)		//基站定位数据，不够准确，忽略掉
             		return;
@@ -434,12 +434,12 @@ public class MainService extends Service {
             	long time = System.currentTimeMillis() - firstLocatedTime;
 	            locationList.add(new MyGpsLocation(latitude, longitude, time, fire));
             }
-            
+
         } else {
         	sendLog("无法获取GPS信息");
         }
     }
-    
+
     /**
      * Internet
      */
@@ -496,7 +496,7 @@ public class MainService extends Service {
 	}
 
     /**
-     * Draw Location 
+     * Draw Location
      */
 	public class MyGpsLocation {
 		public double latitude;
@@ -515,17 +515,17 @@ public class MainService extends Service {
 			Toast.makeText(this, "未找到sdcard，储存失败", Toast.LENGTH_SHORT).show();
 			return;
 		}
-        
+
 		try {
         	File file = new File(FILEDIR + "location_list.txt");
-        	if (!file.exists()){    
+        	if (!file.exists()){
                  try {
 					file.createNewFile();
 					sendLog("创建GPS文件" + file.toString());
 				} catch (IOException e) {
 					sendLog("创建文件失败");
 					return;
-				}    
+				}
             } else {
             	if(!file.delete()) {
 					sendLog("删除原有文件失败");
@@ -564,7 +564,7 @@ public class MainService extends Service {
         try {
         	File file = new File(FILEDIR + "location_list.txt");
         	List<MyGpsLocation> drawList = new ArrayList<MyGpsLocation>();
-        	if (!file.exists()){    
+        	if (!file.exists()){
 				sendLog("无位置数据文件");
             } else {
             	 BufferedReader locationData = new BufferedReader(new FileReader(file));
@@ -594,7 +594,7 @@ public class MainService extends Service {
 			sendLog("创建文件失败");
 			return null;
 		}
-        
+
 	}
 	
     /**

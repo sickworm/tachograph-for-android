@@ -14,7 +14,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
-import android.app.Activity;  
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
@@ -26,7 +26,7 @@ import android.content.ServiceConnection;
 import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationManager;
-import android.os.Bundle;  
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -37,8 +37,8 @@ import android.view.MotionEvent;
 import android.view.GestureDetector.OnGestureListener;
 import android.view.View;
 import android.widget.Toast;
-  
-public class GPSMapActivity extends Activity {  
+
+public class GPSMapActivity extends Activity {
 	private boolean firstTime = true;
 	private boolean showLocationFlag = false;
 	private long backTime = 0;
@@ -47,7 +47,7 @@ public class GPSMapActivity extends Activity {
 	private Thread drawLocationThread = null;
 	private Location location = new Location(LocationManager.GPS_PROVIDER);
     private UpdateReceiver receiver = new UpdateReceiver() {
-	    @Override  
+	    @Override
 	    public void onReceive(Context context, Intent intent) {
 	    	String dataType = intent.getStringExtra(DATA_TYPE);
 	    	if (dataType.equals(GPS_DATA)) {
@@ -68,7 +68,7 @@ public class GPSMapActivity extends Activity {
 		        System.out.println(location.getLatitude() + " " + location.getLongitude());
 	    	}
 	    }
-    }; 
+    };
     private Handler mHandler = new Handler(new Callback() {
         public boolean handleMessage(Message msg) {
         	int order = msg.getData().getInt("order");
@@ -93,13 +93,13 @@ public class GPSMapActivity extends Activity {
     });
 
 	//RefreshService关联
-    private MainService mService; 
+    private MainService mService;
     private LocalBinder serviceBinder;
-    private ServiceConnection mConnection = new ServiceConnection() {  
-        @Override  
-        public void onServiceConnected(ComponentName className,  
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName className,
                 IBinder service) {
-        		serviceBinder = (LocalBinder)service;  
+        		serviceBinder = (LocalBinder)service;
                 mService = serviceBinder.getService();
                 double latitude = mService.getLatitude();
                 double longitude = mService.getLongitude();
@@ -120,20 +120,20 @@ public class GPSMapActivity extends Activity {
     		        }
                 }
                 	
-        }  
-  
-        @Override  
-        public void onServiceDisconnected(ComponentName arg0) {  
-        }  
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+        }
     };
-    
-    
-    @Override  
-    protected void onCreate(Bundle savedInstanceState) {  
-        super.onCreate(savedInstanceState);  
-        setContentView(R.layout.activity_map);  
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_map);
         map = ((MapFragment) getFragmentManager().findFragmentById(R.id.map)).getMap();
-        
+
         //手势识别
 		mGestureDetector = new GestureDetector(this, mGestureListener, null);
         mGestureDetector.setIsLongpressEnabled(true);
@@ -148,7 +148,7 @@ public class GPSMapActivity extends Activity {
         Intent intent = new Intent();
 	    intent.setClass(this, MainService.class);
 	    bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-	    
+	
     	//接受Service广播信息
         IntentFilter filter = new IntentFilter();
         filter.addAction(UpdateReceiver.MSG);
@@ -162,7 +162,7 @@ public class GPSMapActivity extends Activity {
 		unregisterReceiver(receiver);
 		unbindService(mConnection);
 	}
- 
+
 	//将触摸事件交给mGestureDetector处理，否则无法识别
 	@Override
 	public boolean dispatchTouchEvent(MotionEvent ev) {
@@ -171,7 +171,7 @@ public class GPSMapActivity extends Activity {
 	}
 	
 	//手势识别
-	private GestureDetector mGestureDetector;   
+	private GestureDetector mGestureDetector;
 	private OnGestureListener mGestureListener = new OnGestureListener() {
 		@Override
 		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
@@ -220,7 +220,7 @@ public class GPSMapActivity extends Activity {
 			overridePendingTransition(R.animator.in_from_left, R.animator.out_to_right);		
 		
 		finish();
-	}    
+	}
 	
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -245,7 +245,7 @@ public class GPSMapActivity extends Activity {
 
         map.moveCamera(CameraUpdateFactory.zoomTo(18));
     	map.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(locationList.get(0).latitude, locationList.get(0).longitude)));
-        
+
     	if(drawLocationThread != null)
     		drawLocationThread.interrupt();
 		drawLocationThread = new Thread() {
@@ -273,7 +273,7 @@ public class GPSMapActivity extends Activity {
 			Toast.makeText(this, "未找到sdcard，储存失败", Toast.LENGTH_SHORT).show();
 			return;
 		}
-	    
+	
 		File file = new File(MainService.FILEDIR + "location_list.txt");
 		if (file.exists()){
 			AlertDialog dialog = new AlertDialog.Builder(this)

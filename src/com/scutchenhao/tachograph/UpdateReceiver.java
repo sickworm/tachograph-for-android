@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
-public class UpdateReceiver extends BroadcastReceiver{  
+public class UpdateReceiver extends BroadcastReceiver{
 	public static final String DATA_TYPE = "TYPE";
 	public static final String LOG_DATA = "LOG_DATA";
 	public static final String GPS_DATA = "GPS_DATA";

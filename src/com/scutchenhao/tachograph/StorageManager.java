@@ -46,7 +46,7 @@ public class StorageManager {
         	if(!dir.mkdir())
         		return false;
         }
-        
+
         String shortFileName = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss", Locale.CHINESE).format(new Date()) + ".mp4";
         fileName = RECORD_PATH + shortFileName;
         File file = new File(fileName);
@@ -129,7 +129,7 @@ public class StorageManager {
 	protected boolean sdCardAvail() {
         String state = Environment.getExternalStorageState();
         if (Environment.MEDIA_MOUNTED.equals(state)) {
-            File sdcardDir = Environment.getExternalStorageDirectory();  
+            File sdcardDir = Environment.getExternalStorageDirectory();
             StatFs sf = new StatFs(sdcardDir.getPath());
             long blockSize, availCount;
             if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.KITKAT) {
@@ -138,7 +138,7 @@ public class StorageManager {
             } else {
 	            blockSize = sf.getBlockSizeLong();
 	            availCount = sf.getAvailableBlocksLong();
-            } 
+            }
             availStorage = availCount * blockSize / 1024 / 1024;
             log("Ê£Óà¿Õ¼ä:"+ availStorage +"MB");
             return true;
@@ -164,7 +164,7 @@ public class StorageManager {
 	    }
 	    return size;
 	}
-    
+
     private long getFileSize(File file) throws Exception
     {
     	long size = 0;
@@ -179,7 +179,7 @@ public class StorageManager {
     	}
     	return size;
     }
-    
+
 	private void log(String log) {
 		if(DEBUG)
 			Log.i(TAG, log);

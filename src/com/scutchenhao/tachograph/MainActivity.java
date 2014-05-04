@@ -66,9 +66,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	private int qualitySettingPos = 0;
 	private int timeSettingPos = 0;
 	private long backTime = 0;
-	private int storageSetting = 1024;	//MB
-	private int remainStorage = 10;		//MB
-	private int timeSetting = 10;		//s
+	private int storageSetting;		//MB
+	private int remainStorage;		//MB
+	private int timeSetting;		//s
 	private int widthSetting = 320;
 	private int heightSetting = 240;
 	private List<Size> supportedVideoSizes;
@@ -83,8 +83,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
 		@Override
 		public void onSensorChanged(SensorEvent event) {
-			int sensorType = event.sensor.getType();  
-			//values[0]:X轴，values[1]：Y轴，values[2]：Z轴  
+			int sensorType = event.sensor.getType();
+			//values[0]:X轴，values[1]：Y轴，values[2]：Z轴
 			float[] values = event.values;
 			float y = values[1];
 			float z = values[2];
@@ -163,10 +163,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		Camera.Parameters parameters = mCamera.getParameters();
 		supportedVideoSizes = parameters.getSupportedVideoSizes();
     	loadSettings();
-        
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1)
         	mCamera.enableShutterSound(false);
-        
+
         mStorageManager = new StorageManager(this, storageSetting, remainStorage);
         int ret = mStorageManager.check();
         switch(ret) {
@@ -190,10 +190,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         Intent intent = new Intent();
 	    intent.setClass(this, MainService.class);
 	    bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-        
+
 	    //加速度检测
-	    mSensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);  
-        Sensor mAccelerateSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER); 
+	    mSensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);
+        Sensor mAccelerateSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         mSensorManager.registerListener(mSensorEventListener, mAccelerateSensor, SensorManager.SENSOR_DELAY_NORMAL);
 	}
 
@@ -292,7 +292,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         mMediaRecorder.setVideoSize(widthSetting, heightSetting);
         log("录像格式：" + widthSetting + "x" + heightSetting);
         log("录像时间：" + (timeSetting/60) + "m");
-        
+
         if (!mStorageManager.checkNewRecordFile()) {
             log("录像文件错误", LOG_TOAST);
             return false;
@@ -321,7 +321,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         		}
         	}
         });
-        
+
         return true;
 	}
 	
@@ -508,16 +508,16 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	}
 	
 	private void settings() {
-        final View preferenceView = LayoutInflater.from(this).inflate(  
-                R.layout.settings_dialog, null); 
-        final AlertDialog.Builder builder = new AlertDialog.Builder(this); 
+        final View preferenceView = LayoutInflater.from(this).inflate(
+                R.layout.settings_dialog, null);
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(preferenceView);
         builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
 				SharedPreferences settings = getPreferences(MODE_PRIVATE);
 		        Editor mEditor = settings.edit();
-		        
+		
 		        Spinner recordQuality = (Spinner) preferenceView.findViewById(R.id.quality_select);
 		        int pos = recordQuality.getSelectedItemPosition();
 		        Size size = supportedVideoSizes.get(pos);
@@ -536,10 +536,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		        mEditor.putInt("time_pos", pos);
 		        int[] time = getResources().getIntArray(R.array.time);
 		        mEditor.putInt("time", time[pos]);
-		        
+		
 		        mEditor.commit();
 		        mStorageManager.resetStorage(storage[pos]);
-		        
+		
 		        loadSettings();
 			}
         });
@@ -557,10 +557,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, sizeList);
         recordQuality.setAdapter(adapter);
         recordQuality.setSelection(qualitySettingPos);
-        
+
         Spinner recordStorage = (Spinner) preferenceView.findViewById(R.id.storage_select);
         recordStorage.setSelection(storageSettingPos);
-        
+
         Spinner recordTime = (Spinner) preferenceView.findViewById(R.id.time_select);
         recordTime.setSelection(timeSettingPos);
 	}
@@ -569,18 +569,18 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	@SuppressWarnings("unused")
 	private MainService mService;
     private LocalBinder serviceBinder;
-    private ServiceConnection mConnection = new ServiceConnection() {  
-        @Override  
-        public void onServiceConnected(ComponentName className,  
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName className,
                 IBinder service) {
-        		serviceBinder = (LocalBinder)service;  
+        		serviceBinder = (LocalBinder)service;
                 mService = serviceBinder.getService();
         }
 
-        @Override  
-        public void onServiceDisconnected(ComponentName arg0) {  
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
         }
     };
-    
-    
+
+
 }
