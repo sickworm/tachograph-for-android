@@ -23,6 +23,10 @@ import com.scutchenhao.tachograph.MainService.LocalBinder;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.hardware.Camera.Size;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.media.MediaRecorder;
 import android.media.MediaRecorder.OnInfoListener;
 import android.view.GestureDetector;
@@ -36,6 +40,7 @@ import android.view.GestureDetector.OnGestureListener;
 import android.view.View.OnClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.Spinner;
 import android.widget.Toast;
 import android.util.Log;
@@ -44,11 +49,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	public final static int TURN_LEFT = 1;
 	public final static int TURN_RIGHT = 2;
 	public final static int DRAG_SENSITIVITY = 2500;
+	protected final static int TAKE_PICTURE_AMOUNT = 5;
+	protected final static int TAKE_PICTURE_DELAY = 1000;
 	protected final static String TAG = "ScutTachograph:Activity";
 	protected final static boolean DEBUG = true;
 	private final static int LOG_TOAST = 1;
 	private Button start;
     private Button stop;
+    private ImageButton setting;
     private MediaRecorder mMediaRecorder;
     private SurfaceView mSurfaceView;
     private boolean isRecording;
@@ -64,7 +72,72 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	private int widthSetting = 320;
 	private int heightSetting = 240;
 	private List<Size> supportedVideoSizes;
+	private SensorManager mSensorManager;
+    private boolean takedPicture = true;
+    private int takedPictureAmount = 0;
+	private SensorEventListener mSensorEventListener = new SensorEventListener() {
 
+		@Override
+		public void onAccuracyChanged(Sensor sensor, int accuracy) {
+		}
+
+		@Override
+		public void onSensorChanged(SensorEvent event) {
+			int sensorType = event.sensor.getType();  
+			//values[0]:X轴，values[1]：Y轴，values[2]：Z轴  
+			float[] values = event.values;
+			float y = values[1];
+			float z = values[2];
+			
+			if(sensorType == Sensor.TYPE_ACCELEROMETER){
+				int value = 15;
+				if(y >= value || y <= -value || z >= value || z <= -value){
+					if (takedPicture) {
+						log("takePicture");
+						new Thread() {
+							public void run() {
+								while(takedPictureAmount != TAKE_PICTURE_AMOUNT) {
+									takedPicture = false;
+									mCamera.takePicture(shutter, null, jpeg);
+									try {
+										sleep(TAKE_PICTURE_DELAY);
+									} catch (InterruptedException e) {
+										e.printStackTrace();
+									}
+									while(!takedPicture);
+									log("takedPictureMount:" + takedPictureAmount);
+								}
+								takedPictureAmount = 0;
+							}
+						}.start();
+					}
+				}
+			}
+		}
+		
+	};
+	private Camera.ShutterCallback shutter = new Camera.ShutterCallback() {
+
+		@Override
+		public void onShutter() {
+			log("onShutter");
+		}
+		
+	};
+	
+	private Camera.PictureCallback jpeg = new Camera.PictureCallback() {
+
+		@Override
+		public void onPictureTaken(byte[] data, Camera camera) {
+			log("onPictureTaken");
+			mStorageManager.savePhoto(data);
+			takedPicture = true;
+			takedPictureAmount++;
+			mCamera.startPreview();
+		}
+		
+	};
+	@SuppressLint("NewApi")
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -74,6 +147,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         start = (Button) this.findViewById(R.id.start);
         stop = (Button) this.findViewById(R.id.stop);
+        setting = (ImageButton) this.findViewById(R.id.setting);
         start.setOnClickListener(new TestVideoListener());
         stop.setOnClickListener(new TestVideoListener());
         setRecordState(false);
@@ -84,6 +158,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         mGestureDetector.setIsLongpressEnabled(true);
 
         mMediaRecorder = new MediaRecorder();
+        mCamera = Camera.open();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1)
+        	mCamera.enableShutterSound(false);
         
         mStorageManager = new StorageManager(storageSetting, remainStorage);
         int ret = mStorageManager.check();
@@ -98,7 +175,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         	start.setEnabled(false);
         	break;
         }
-        
 	}
 
 	@Override
@@ -109,6 +185,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         Intent intent = new Intent();
 	    intent.setClass(this, MainService.class);
 	    bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+        
+	    //加速度检测
+	    mSensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);  
+        Sensor mAccelerateSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER); 
+        mSensorManager.registerListener(mSensorEventListener, mAccelerateSensor, SensorManager.SENSOR_DELAY_NORMAL);
 	}
 
 	@Override
@@ -129,10 +210,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		log("onStop");
 		if(isRecording)
 			stopRecording();
-		else
-			stopPreview();
+		stopPreview();
 
+		mCamera.release();
+		mCamera = null;
+		mMediaRecorder.release();
+		
 		unbindService(mConnection);
+		mSensorManager.unregisterListener(mSensorEventListener);
 	}
 	
 
@@ -176,24 +261,23 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     	log("surfaceDestroyed");
 	}
 	
-	private void setRecordState(boolean state) {
-		if(state) {
+	private void setRecordState(boolean bStart) {
+		if(bStart) {
 			start.setEnabled(false);
 	        stop.setEnabled(true);
+	        setting.setEnabled(false);
 	        isRecording = true;
 		} else {
 			start.setEnabled(true);
 	        stop.setEnabled(false);
+	        setting.setEnabled(true);
 	        isRecording = false;
 		}
 	}
 	
-	@SuppressLint("NewApi")
 	private boolean mediaRecorderConfig() {
         loadSettings();
         mCamera.unlock();
-        if (android.os.Build.VERSION.SDK_INT > android.os.Build.VERSION_CODES.JELLY_BEAN_MR1)
-        	mCamera.enableShutterSound(false);
         mMediaRecorder.setCamera(mCamera);
         mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
@@ -243,9 +327,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         public void onClick(View v) {
             if (v == start) {
             	startRecording();
-            }
-            if (v == stop) {
+            } else if (v == stop) {
             	stopRecording();
+            } else if (v == setting) {
+            	settings();
             }
         }
 
@@ -324,13 +409,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         } catch (Exception e) {
             e.printStackTrace();
         }
-		
 	}
 	
 	private void startPreview(SurfaceHolder holder) {
 		log("startPreview");
 		try {
-            mCamera = Camera.open();
             mCamera.setPreviewDisplay(holder);  
     		mCamera.startPreview();
     		mCamera.autoFocus(null);
@@ -344,8 +427,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		if(mCamera == null)
 			return;
 		mCamera.stopPreview();
-		mCamera.release();
-		mCamera = null;
 	}
 	
 	private void log(String log) {
@@ -424,7 +505,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		finish();
 	}
 	
-	public void loadSettings() {
+	private void loadSettings() {
 		SharedPreferences settings = this.getPreferences(MODE_PRIVATE);
 		storageSettingPos = settings.getInt("storage_pos", storageSettingPos);
 		qualitySettingPos = settings.getInt("quality_pos", qualitySettingPos);
@@ -436,7 +517,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		heightSetting = settings.getInt("height", heightSetting);
 	}
 	
-	public void settings(View view) {
+	private void settings() {
         final View preferenceView = LayoutInflater.from(this).inflate(  
                 R.layout.settings_dialog, null); 
         final AlertDialog.Builder builder = new AlertDialog.Builder(this); 
@@ -467,6 +548,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		        mEditor.putInt("time", time[pos]);
 		        
 		        mEditor.commit();
+		        mStorageManager.resetStorage(storage[pos] * 1024);
 			}
         });
         loadDialogPreferences(preferenceView);
@@ -492,7 +574,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	}
 
 	//RefreshService关联
-    @SuppressWarnings("unused")
+	@SuppressWarnings("unused")
 	private MainService mService;
     private LocalBinder serviceBinder;
     private ServiceConnection mConnection = new ServiceConnection() {  
@@ -505,7 +587,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         @Override  
         public void onServiceDisconnected(ComponentName arg0) {  
-        }  
+        }
     };
     
     

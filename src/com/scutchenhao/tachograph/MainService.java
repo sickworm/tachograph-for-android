@@ -13,10 +13,10 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 
 import android.app.Service;
 import android.content.Context;
@@ -40,8 +40,9 @@ public class MainService extends Service {
 	public static final boolean DEBUG = MainActivity.DEBUG;
 	public static final String ID = "car";
 	public static final String URL = "http://datatransfer.duapp.com/hello";
-	public static final String FILEDIR = StorageManager.PATH + "SerialPortData/";
-	private FileOutputStream dataFile;
+	public static final String FILEDIR = StorageManager.LOG_PATH;
+	private File gpsFile;
+	private FileOutputStream gpsFileStream;
     public boolean sendFlag = true;
     public boolean receiveFlag = true;
     public boolean networkAvailableFlag = false;
@@ -54,7 +55,8 @@ public class MainService extends Service {
     private int fire = 0;
     private String log = "";
     private List<MyGpsLocation> locationList = new ArrayList<MyGpsLocation>();
-    private final IBinder mBinder = new LocalBinder();  
+    private final IBinder mBinder = new LocalBinder();
+    private boolean hasGpsData = false;
     
     public class LocalBinder extends Binder {  
         MainService getService() {  
@@ -89,9 +91,9 @@ public class MainService extends Service {
 		super.onDestroy();
 		sendFlag = false;
 		try {
-			if (dataFile != null) {
-				sendLog("关闭文件");
-				dataFile.close();
+			if (!hasGpsData) {
+				gpsFileStream.close();
+				gpsFile.delete();
 			} else {
 				sendLog("无数据文件");
 			}
@@ -137,25 +139,19 @@ public class MainService extends Service {
 					if (dir.mkdir())
 						sendLog("创建目录" + FILEDIR);
 				}
-	        Calendar c = Calendar.getInstance();
-	        int year = c.get(Calendar.YEAR); 
-	        int month = c.get(Calendar.MONTH) + 1; 
-	        int date = c.get(Calendar.DATE); 
-	        int hour = c.get(Calendar.HOUR_OF_DAY); 
-	        int minute = c.get(Calendar.MINUTE); 
-	        int second = c.get(Calendar.SECOND);  
 	        try {
-	        	File file = new File(FILEDIR + year + "-" + month + "-" + date + " " +hour + "-" +minute + "-" + second + ".txt");
-	        	if (!file.exists()){    
+	            String fileName = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss", Locale.CHINESE).format(new Date()) + ".txt";
+	        	gpsFile = new File(FILEDIR + fileName);
+	        	if (!gpsFile.exists()){    
 	                 try {
-						file.createNewFile();
-						sendLog("创建记录文件" + file.toString());
+	                	 gpsFile.createNewFile();
+						sendLog("创建记录文件" + gpsFile.toString());
 					} catch (IOException e) {
 						sendLog("创建文件失败");
 						return;
 					}    
 	            }    
-	        	dataFile = new FileOutputStream(file);
+	        	gpsFileStream = new FileOutputStream(gpsFile);
 			} catch (FileNotFoundException e) {
 				sendLog("创建文件失败");
 			}
@@ -397,10 +393,11 @@ public class MainService extends Service {
 					if (recordFlag) {
 						Date now = new Date();
 			            String time = DateFormat.getDateTimeInstance().format(now);
-			            String gpsData = "GPS: " + latitude + "," + longitude + "," + altitude + "\r\n";
+			            String gpsData = "GPS: " + latitude + "," + longitude + "\r\n";
 			        	try {
-			        		if (dataFile != null)
-			        			dataFile.write((time + '\t' + gpsData).getBytes());
+			        		if (gpsFileStream != null)
+			        			gpsFileStream.write((time + '\t' + gpsData).getBytes());
+			        			hasGpsData = true;
 						} catch (IOException e) {
 							sendLog("写入GPS数据失败");
 						}
@@ -567,7 +564,7 @@ public class MainService extends Service {
         	File file = new File(FILEDIR + "location_list.txt");
         	List<MyGpsLocation> drawList = new ArrayList<MyGpsLocation>();
         	if (!file.exists()){    
-				sendLog("无位置数据文件");   
+				sendLog("无位置数据文件");
             } else {
             	 BufferedReader locationData = new BufferedReader(new FileReader(file));
             	 try {

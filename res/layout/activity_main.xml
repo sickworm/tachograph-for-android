@@ -30,13 +30,12 @@
         android:text="@string/stop" />
 
     <ImageButton
-        android:id="@+id/imageButton1"
+        android:id="@+id/setting"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignRight="@+id/surfaceview"
         android:layout_alignTop="@+id/surfaceview"
         android:src="@android:drawable/ic_menu_preferences"
-        android:contentDescription="@string/app_name"
-        android:onClick="settings" />
+        android:contentDescription="@string/app_name"/>
 
 </RelativeLayout>

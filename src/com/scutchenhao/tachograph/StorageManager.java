@@ -2,6 +2,8 @@ package com.scutchenhao.tachograph;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Date;
 import java.util.Locale;
 
@@ -16,11 +18,16 @@ import android.util.Log;
 public class StorageManager {
 	public final static String TAG = "ScutTachograph:StorageManager";
 	public final static boolean DEBUG = MainActivity.DEBUG;
-	public final static String PATH = Environment.getExternalStorageDirectory().getPath() + "/ScutTachograph/";
+	public final static String ROOT_PATH = Environment.getExternalStorageDirectory().getPath() + "/ScutTachograph/";
+	public final static String RECORD_PATH = ROOT_PATH;
+	public final static String PICTURE_PATH = ROOT_PATH + "photo/";
+	public final static String LOG_PATH = ROOT_PATH + "log/";
 	public final static int STORAGE_UNMOUNT = 1;
 	public final static int STORAGE_NOT_ENOUGH = 2;
 	public final static int STORAGE_AVAILABLE = 3;
 	public final static int CREATE_DIR_FAILED = 4;
+	public final static boolean TYPE_HAS_SUBDIR = true;
+	public final static boolean TYPE_NO_SUBDIR = false;
 	private int size;	//MB
 	private int remainStorage;	//MB
 	private long availStorage = 0;	//MB
@@ -32,14 +39,14 @@ public class StorageManager {
 	}
 	
 	protected boolean checkNewRecordFile() {
-        File dir = new File(PATH);
+        File dir = new File(RECORD_PATH);
         if(!dir.isDirectory() || !dir.exists()) {
         	if(!dir.mkdir())
         		return false;
         }
         
         String shortFileName = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss", Locale.CHINESE).format(new Date()) + ".mp4";
-        fileName = PATH + shortFileName;
+        fileName = RECORD_PATH + shortFileName;
         File file = new File(fileName);
         if(file.exists())
         	file.delete();
@@ -55,13 +62,16 @@ public class StorageManager {
 			return STORAGE_UNMOUNT;
 		
 		long dirSize = 0;
+		long recordFileSize = 0;
 		try {
-			dirSize = getFileSizes(new File(PATH)) / 1024 / 1024;
+			dirSize = getFileSizes(new File(RECORD_PATH), TYPE_HAS_SUBDIR) / 1024 / 1024;
 			log("文件夹大小：" + dirSize + "MB");
+			recordFileSize = getFileSizes(new File(RECORD_PATH), TYPE_NO_SUBDIR) / 1024 / 1024;
+			log("录像文件大小：" + recordFileSize + "MB");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		if (size - dirSize >= availStorage) {
+		if (size - recordFileSize >= availStorage) {
 			return STORAGE_NOT_ENOUGH;
 		}
 		return STORAGE_AVAILABLE;
@@ -72,14 +82,13 @@ public class StorageManager {
 		if (ret != STORAGE_AVAILABLE)
 			return ret;
 
-		if (afterRecording) {			
+		if (afterRecording) {
 			if (availStorage + remainStorage >= size)
 				;//should do something
 			fileScan(context);
 		}
 		return ret;
 	}
-	
 	
 	protected void resetStorage(int size) {
 		this.size = size;
@@ -90,6 +99,28 @@ public class StorageManager {
         context.sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, data));
 	}
 
+	public void savePhoto(byte[] data) {
+		if (data == null)
+			return;
+		File dir = new File(PICTURE_PATH);
+		if (!dir.exists())
+			dir.mkdir();
+        String shortFileName = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss", Locale.CHINESE).format(new Date()) + ".jpg";
+		File file = new File(PICTURE_PATH + shortFileName);
+		if (file.exists())
+			file.delete();
+		try {
+			file.createNewFile();
+	    	FileOutputStream photoData = new FileOutputStream(file);
+	    	photoData.write(data);
+	    	photoData.close();
+		} catch (IOException e) {
+			log("保存图片失败");
+			return;
+		}
+		log("保存图片:" + shortFileName);
+	}
+	
     @SuppressLint("NewApi")
 	@SuppressWarnings("deprecation")
 	protected boolean sdCardAvail() {
@@ -113,14 +144,16 @@ public class StorageManager {
         	return false;
         }
     }
-    
-    private long getFileSizes(File f) throws Exception
+
+    private long getFileSizes(File f, boolean type) throws Exception
     {
 	    long size = 0;
 	    File flist[] = f.listFiles();
 	    for (int i = 0; i < flist.length; i++){
 	    	if (flist[i].isDirectory()){
-	    		size = size + getFileSizes(flist[i]);
+	    		if (type == TYPE_NO_SUBDIR)
+	    			continue;
+	    		size = size + getFileSizes(flist[i], TYPE_HAS_SUBDIR);
 	    	}
 	    	else{
 	    		size =size + getFileSize(flist[i]);
@@ -139,7 +172,6 @@ public class StorageManager {
     		fis.close();
     	}
     	else{
-    		file.createNewFile();
     		log("文件不存在!");
     	}
     	return size;
@@ -147,6 +179,6 @@ public class StorageManager {
     
 	private void log(String log) {
 		if(DEBUG)
-			Log.v(TAG, log);
+			Log.i(TAG, log);
 	}
 }
