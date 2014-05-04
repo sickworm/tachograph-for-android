@@ -232,8 +232,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         		default:
         			break;
         		}
-                 }
-             });
+        	}
+        });
         
         return true;
 	}
