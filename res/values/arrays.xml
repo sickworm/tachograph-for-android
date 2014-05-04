@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <integer-array name="storage">
-        <item>1</item>
-        <item>2</item>
-        <item>3</item>
-        <item>4</item>
-        <item>5</item>
-        <item>6</item>
-        <item>7</item>
-        <item>8</item>
-        <item>9</item>
-        <item>10</item>
-        <item>20</item>
-        <item>30</item>
-        <item>50</item>
-        <item>100</item>
+        <item>1024</item>
+        <item>2048</item>
+        <item>3072</item>
+        <item>4096</item>
+        <item>5120</item>
+        <item>6144</item>
+        <item>7168</item>
+        <item>8192</item>
+        <item>9216</item>
+        <item>10240</item>
+        <item>20480</item>
+        <item>30720</item>
+        <item>51200</item>
+        <item>102400</item>
     </integer-array>
     
     <string-array name="storage_name">

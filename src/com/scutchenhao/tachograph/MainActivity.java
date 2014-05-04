@@ -150,6 +150,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         setting = (ImageButton) this.findViewById(R.id.setting);
         start.setOnClickListener(new TestVideoListener());
         stop.setOnClickListener(new TestVideoListener());
+        setting.setOnClickListener(new TestVideoListener());
         setRecordState(false);
         mSurfaceView = (SurfaceView) this.findViewById(R.id.surfaceview);
         mSurfaceView.getHolder().addCallback(this);
@@ -288,7 +289,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         // 设置视频录制的分辨率。必须放在设置编码和格式的后面，否则报错
         mMediaRecorder.setVideoSize(widthSetting, heightSetting);
         log("录像格式：" + widthSetting + "x" + heightSetting);
-        log("录像时间：" + timeSetting + "s");
+        log("录像时间：" + (timeSetting/60) + "m");
         
         if (!mStorageManager.checkNewRecordFile()) {
             log("录像文件错误", LOG_TOAST);
@@ -507,14 +508,13 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	
 	private void loadSettings() {
 		SharedPreferences settings = this.getPreferences(MODE_PRIVATE);
-		storageSettingPos = settings.getInt("storage_pos", storageSettingPos);
-		qualitySettingPos = settings.getInt("quality_pos", qualitySettingPos);
-		timeSettingPos = settings.getInt("time_pos", timeSettingPos);
-		storageSetting = settings.getInt("storage", storageSetting);
-		remainStorage = settings.getInt("remain", remainStorage);
-		timeSetting = settings.getInt("time", timeSetting);
-		widthSetting = settings.getInt("width", widthSetting);
-		heightSetting = settings.getInt("height", heightSetting);
+		storageSettingPos = settings.getInt("storage_pos", 0);
+		qualitySettingPos = settings.getInt("quality_pos", 0);
+		timeSettingPos = settings.getInt("time_pos", 0);
+		storageSetting = settings.getInt("storage", getResources().getIntArray(R.array.storage)[0]);
+		timeSetting = settings.getInt("time", getResources().getIntArray(R.array.time)[0]);
+		widthSetting = settings.getInt("width", supportedVideoSizes.get(0).width);
+		heightSetting = settings.getInt("height", supportedVideoSizes.get(0).height);
 	}
 	
 	private void settings() {
@@ -548,7 +548,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		        mEditor.putInt("time", time[pos]);
 		        
 		        mEditor.commit();
-		        mStorageManager.resetStorage(storage[pos] * 1024);
+		        mStorageManager.resetStorage(storage[pos]);
 			}
         });
         loadDialogPreferences(preferenceView);
