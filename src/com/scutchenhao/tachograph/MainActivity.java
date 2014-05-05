@@ -2,13 +2,13 @@ package com.scutchenhao.tachograph;
 
 import android.os.Bundle;
 import android.os.IBinder;
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
@@ -38,12 +38,16 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.GestureDetector.OnGestureListener;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup.LayoutParams;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ScrollView;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
@@ -56,12 +60,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	protected final static String TAG = "ScutTachograph:Activity";
 	protected final static boolean DEBUG = true;
 	private final static int LOG_TOAST = 1;
+	private final static int LOG_SHOW_TEXT = 2;
+	private final static int LOG_FROM_SERVICE = 3;
 	private Button start;
     private Button stop;
     private ImageButton setting;
+    private TextView log;
+    private ScrollView scroll;
+    private boolean isExpanding  = false;
     private MediaRecorder mMediaRecorder;
     private SurfaceView mSurfaceView;
-    private boolean isRecording;
+    private boolean isRecording = false;
     private Camera mCamera;
     private StorageManager mStorageManager;
 	private int storageSettingPos = 0;
@@ -101,7 +110,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 							public void run() {
 								while(takedPictureAmount != TAKE_PICTURE_AMOUNT) {
 									takedPicture = false;
-									mCamera.takePicture(shutter, null, jpeg);
+									mCamera.takePicture(null, null, jpeg);
 									try {
 										sleep(TAKE_PICTURE_DELAY);
 									} catch (InterruptedException e) {
@@ -119,15 +128,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		}
 		
 	};
-	private Camera.ShutterCallback shutter = new Camera.ShutterCallback() {
-
-		@Override
-		public void onShutter() {
-			log("onShutter");
-		}
-		
-	};
-	
 	private Camera.PictureCallback jpeg = new Camera.PictureCallback() {
 
 		@Override
@@ -140,7 +140,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		}
 		
 	};
-
+    private UpdateReceiver receiver = new UpdateReceiver() {
+	    @Override
+	    public void onReceive(Context context, Intent intent) {
+	    	String dataType = intent.getStringExtra(DATA_TYPE);
+	    	if (dataType.equals(LOG_DATA)) {
+	    		String data = intent.getStringExtra(DATA);
+	    		log(data, LOG_FROM_SERVICE);
+	    	}
+	    }
+    };
+    
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -151,9 +161,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         start = (Button) this.findViewById(R.id.start);
         stop = (Button) this.findViewById(R.id.stop);
         setting = (ImageButton) this.findViewById(R.id.setting);
+		log = (TextView) findViewById(R.id.log);
+        log.setMovementMethod(ScrollingMovementMethod.getInstance());
+        scroll = (ScrollView) findViewById(R.id.scroll);
         start.setOnClickListener(new TestVideoListener());
         stop.setOnClickListener(new TestVideoListener());
         setting.setOnClickListener(new TestVideoListener());
+        log.setOnClickListener(new TestVideoListener());
+        
         setRecordState(false);
         mSurfaceView = (SurfaceView) this.findViewById(R.id.surfaceview);
         mSurfaceView.getHolder().addCallback(this);
@@ -167,18 +182,18 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         int ret = mStorageManager.check();
         switch(ret) {
         case StorageManager.STORAGE_AVAILABLE:
-        	log("储存空间可用");
+        	log("储存空间充足", LOG_SHOW_TEXT);
         	break;
         case StorageManager.STORAGE_UNMOUNT:
         case StorageManager.STORAGE_NOT_ENOUGH:
         default:
-        	log("储存空间异常");
+        	log("储存空间不足", LOG_SHOW_TEXT);
         	start.setEnabled(false);
         	break;
         }
+
 	}
 
-	@SuppressLint("NewApi")
 	@Override
 	protected void onStart() {
 		super.onStart();
@@ -193,6 +208,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         Sensor mAccelerateSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         mSensorManager.registerListener(mSensorEventListener, mAccelerateSensor, SensorManager.SENSOR_DELAY_NORMAL);
 
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(UpdateReceiver.MSG);
+        registerReceiver(receiver, filter);
+
         mCamera = Camera.open();
 		Camera.Parameters parameters = mCamera.getParameters();
 		supportedVideoSizes = parameters.getSupportedVideoSizes();
@@ -200,8 +220,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     	parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
     	parameters.setPreviewSize(widthSetting, heightSetting);
     	mCamera.setParameters(parameters);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1)
-        	mCamera.enableShutterSound(false);
 	}
 
 	@Override
@@ -230,6 +248,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		
 		unbindService(mConnection);
 		mSensorManager.unregisterListener(mSensorEventListener);
+		
+        unregisterReceiver(receiver);
 	}
 	
 
@@ -296,8 +316,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         // 设置视频录制的分辨率。必须放在设置编码和格式的后面，否则报错
         mMediaRecorder.setVideoSize(widthSetting, heightSetting);
-        log("录像格式：" + widthSetting + "x" + heightSetting);
-        log("录像时间：" + (timeSetting/60) + "m");
+        log("录像分辨率：" + widthSetting + "x" + heightSetting, LOG_SHOW_TEXT);
+        log("录像时间：" + (timeSetting/60) + "m", LOG_SHOW_TEXT);
 
         if (!mStorageManager.checkNewRecordFile()) {
             log("录像文件错误", LOG_TOAST);
@@ -340,9 +360,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             	stopRecording();
             } else if (v == setting) {
             	settings();
+            } else if (v == log) {
+            	extendLogView();
             }
         }
-
     }
 	
 	private void startRecording() {
@@ -397,12 +418,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	            int ret = mStorageManager.refreshDir(true);
 	            switch(ret) {
 	            case StorageManager.STORAGE_AVAILABLE:
-	            	log("储存空间可用");
+	            	log("储存空间充足");
 	            	break;
 	            case StorageManager.STORAGE_UNMOUNT:
 	            case StorageManager.STORAGE_NOT_ENOUGH:
 	            default:
-	            	log("储存空间异常");
+	            	log("储存空间不足", LOG_TOAST);
 	            	start.setEnabled(false);
 	            	return;
 	            }
@@ -425,17 +446,38 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 			Log.v(TAG, log);
 	}
 
-	private void log(String log, int type) {
+	private void log(String data, int type) {
 		switch(type) {
 		case LOG_TOAST:
-			Toast.makeText(MainActivity.this, log, Toast.LENGTH_SHORT).show();
-			log(log);
+			Toast.makeText(MainActivity.this, data, Toast.LENGTH_SHORT).show();
+			log(data);
+			break;
+		case LOG_SHOW_TEXT:
+			log(data);
+			break;
+		case LOG_FROM_SERVICE:
 			break;
 		default:
 			break;
 		}
+		log.append(data + "\n");		//if you set android:maxlines, i can not work
+		scroll.post(new Runnable() {
+	        public void run() {
+	        	scroll.fullScroll(ScrollView.FOCUS_DOWN);
+	        }
+		});
 	}
 
+	private void extendLogView() {
+		LayoutParams params = scroll.getLayoutParams();
+		float d = getResources().getDisplayMetrics().density;
+		if (isExpanding)
+			params.height = (int)(50 * d);
+		else
+			params.height = (int)(150 * d);
+		isExpanding = !isExpanding;
+		scroll.setLayoutParams(params);
+	}
 	
 	/*
 	 * 手势识别
@@ -579,7 +621,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	}
 
 	//RefreshService关联
-	@SuppressWarnings("unused")
 	private MainService mService;
     private LocalBinder serviceBinder;
     private ServiceConnection mConnection = new ServiceConnection() {
@@ -588,6 +629,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 IBinder service) {
         		serviceBinder = (LocalBinder)service;
                 mService = serviceBinder.getService();
+                log.setText(mService.getLog());
         }
 
         @Override

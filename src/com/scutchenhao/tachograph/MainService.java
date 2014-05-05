@@ -443,7 +443,7 @@ public class MainService extends Service {
     /**
      * Internet
      */
-	protected String getData() {
+	private String getData() {
 		SharedPreferences settings = getSharedPreferences("setting", MODE_PRIVATE);
 		String id = settings.getString("id", MainActivity.DEFAULT_ID);
 		try {
@@ -471,7 +471,7 @@ public class MainService extends Service {
 		}
 	}
 
-	protected String sendData(String content) {
+	private String sendData(String content) {
 		SharedPreferences settings = getSharedPreferences("setting", MODE_PRIVATE);
 		String id = settings.getString("id", MainActivity.DEFAULT_ID);
 		try {
@@ -614,6 +614,10 @@ public class MainService extends Service {
 	
     protected List<MyGpsLocation> getLocationList() {
     	return loadLocation();
+    }
+	
+    protected String getLog() {
+    	return log;
     }
 
 }

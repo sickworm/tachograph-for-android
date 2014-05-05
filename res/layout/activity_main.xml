@@ -38,4 +38,25 @@
         android:src="@android:drawable/ic_menu_preferences"
         android:contentDescription="@string/app_name"/>
 
+	<ScrollView
+	    android:id="@+id/scroll"
+	    android:layout_width="300dp"
+	    android:layout_height="50dp"
+	    android:layout_alignParentBottom="true"
+	    android:layout_centerHorizontal="true"
+	    android:background="#66FFFFFF"
+	    android:fadingEdge="vertical"
+	    android:scrollbars="vertical" >
+
+	    <TextView
+	        android:id="@+id/log"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_marginLeft="5dp"
+	        android:layout_marginRight="5dp"
+	        android:layout_marginTop="5dp"
+	        android:text="@string/app_name"
+	        android:textSize="16sp" />
+	</ScrollView>
+
 </RelativeLayout>
