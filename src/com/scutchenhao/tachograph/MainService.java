@@ -58,10 +58,11 @@ public class MainService extends Service {
     private List<MyGpsLocation> locationList = new ArrayList<MyGpsLocation>();
     private final IBinder mBinder = new LocalBinder();
     private boolean hasGpsData = false;
+    private boolean isServiceConnected = false;
 
     public class LocalBinder extends Binder {
         MainService getService() {
-            // 返回Activity所关联的Service对象，这样在Activity里，就可调用Service里的一些公用方法和公用属性
+        	isServiceConnected = true;
             return MainService.this;
         }
     }
@@ -113,6 +114,8 @@ public class MainService extends Service {
     	if (DEBUG)
     		Log.v(TAG, msg);
     	log = log.concat(msg + '\n');
+    	if (!isServiceConnected)		//avoid repeat log in log textview due to the delay time of boardcast
+    		return;
     	Intent mIntent = new Intent(UpdateReceiver.MSG);
     	mIntent.putExtra(UpdateReceiver.DATA_TYPE, UpdateReceiver.LOG_DATA);
     	mIntent.putExtra(UpdateReceiver.DATA, msg);
