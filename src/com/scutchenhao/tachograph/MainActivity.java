@@ -40,6 +40,7 @@ import android.view.GestureDetector.OnGestureListener;
 import android.view.View.OnClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.Spinner;
 import android.widget.Toast;
@@ -49,6 +50,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	public final static int TURN_LEFT = 1;
 	public final static int TURN_RIGHT = 2;
 	public final static int DRAG_SENSITIVITY = 2500;
+	public final static String DEFAULT_ID = "car1";
 	protected final static int TAKE_PICTURE_AMOUNT = 5;
 	protected final static int TAKE_PICTURE_DELAY = 1000;
 	protected final static String TAG = "ScutTachograph:Activity";
@@ -71,6 +73,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	private int timeSetting;		//s
 	private int widthSetting = 320;
 	private int heightSetting = 240;
+	private String idSetting = "";
 	private List<Size> supportedVideoSizes;
 	private SensorManager mSensorManager;
     private boolean takedPicture = true;
@@ -130,10 +133,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		@Override
 		public void onPictureTaken(byte[] data, Camera camera) {
 			log("onPictureTaken");
+			mCamera.startPreview();
 			mStorageManager.savePhoto(data);
 			takedPicture = true;
 			takedPictureAmount++;
-			mCamera.startPreview();
 		}
 		
 	};
@@ -163,6 +166,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		Camera.Parameters parameters = mCamera.getParameters();
 		supportedVideoSizes = parameters.getSupportedVideoSizes();
     	loadSettings();
+    	parameters.setPreviewSize(widthSetting, heightSetting);
+    	mCamera.setParameters(parameters);
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1)
         	mCamera.enableShutterSound(false);
@@ -251,8 +256,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		mCamera.autoFocus(null);
     	mCamera.startPreview();
+		mCamera.autoFocus(null);
 	}
 
 	@Override
@@ -491,7 +496,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	}
 	
 	private void loadSettings() {
-		SharedPreferences settings = this.getPreferences(MODE_PRIVATE);
+		SharedPreferences settings = getSharedPreferences("setting", MODE_PRIVATE);
 		storageSettingPos = settings.getInt("storage_pos", 0);
 		qualitySettingPos = settings.getInt("quality_pos", 0);
 		timeSettingPos = settings.getInt("time_pos", 0);
@@ -499,12 +504,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		timeSetting = settings.getInt("time", getResources().getIntArray(R.array.time)[0]);
 		widthSetting = settings.getInt("width", supportedVideoSizes.get(0).width);
 		heightSetting = settings.getInt("height", supportedVideoSizes.get(0).height);
-		
-		mCamera.stopPreview();
-		Camera.Parameters parameters = mCamera.getParameters();
-    	parameters.setPreviewSize(widthSetting, heightSetting);
-    	mCamera.setParameters(parameters);
-    	mCamera.startPreview();
+		idSetting = settings.getString("id", DEFAULT_ID);
 	}
 	
 	private void settings() {
@@ -515,7 +515,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
-				SharedPreferences settings = getPreferences(MODE_PRIVATE);
+				SharedPreferences settings = getSharedPreferences("setting", MODE_PRIVATE);
 		        Editor mEditor = settings.edit();
 		
 		        Spinner recordQuality = (Spinner) preferenceView.findViewById(R.id.quality_select);
@@ -537,10 +537,20 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		        int[] time = getResources().getIntArray(R.array.time);
 		        mEditor.putInt("time", time[pos]);
 		
+		        EditText id = (EditText) preferenceView.findViewById(R.id.id);
+		        String idName = id.getText().toString();
+		        mEditor.putString("id", idName);
+		        
 		        mEditor.commit();
 		        mStorageManager.resetStorage(storage[pos]);
 		
 		        loadSettings();
+				mCamera.stopPreview();
+				Camera.Parameters parameters = mCamera.getParameters();
+		    	parameters.setPreviewSize(widthSetting, heightSetting);
+		    	mCamera.setParameters(parameters);
+		    	mCamera.startPreview();
+		    	mCamera.autoFocus(null);
 			}
         });
         loadDialogPreferences(preferenceView);
@@ -563,6 +573,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         Spinner recordTime = (Spinner) preferenceView.findViewById(R.id.time_select);
         recordTime.setSelection(timeSettingPos);
+        
+        EditText id = (EditText) preferenceView.findViewById(R.id.id);
+        id.setText(idSetting);
 	}
 
 	//RefreshService关联

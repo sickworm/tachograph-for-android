@@ -21,6 +21,7 @@ import java.util.Locale;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.location.GpsSatellite;
 import android.location.GpsStatus;
 import android.location.Location;
@@ -38,7 +39,6 @@ import android.widget.Toast;
 public class MainService extends Service {
 	public static final String TAG = "ScutTachograph:Service";
 	public static final boolean DEBUG = MainActivity.DEBUG;
-	public static final String ID = "car";
 	public static final String URL = "http://datatransfer.duapp.com/hello";
 	public static final String FILEDIR = StorageManager.LOG_PATH;
 	public static final int SEND_DELTA_TIME = 2000;
@@ -444,10 +444,12 @@ public class MainService extends Service {
      * Internet
      */
 	protected String getData() {
+		SharedPreferences settings = getSharedPreferences("setting", MODE_PRIVATE);
+		String id = settings.getString("id", MainActivity.DEFAULT_ID);
 		try {
 			HttpURLConnection connection;
 			URL server;
-			server = new URL(URL + "?id=" + ID);
+			server = new URL(URL + "?id=" + id);
 			connection = (HttpURLConnection)server.openConnection();
 			connection.setReadTimeout(10 * 1000);
 			connection.setRequestMethod("GET");
@@ -470,10 +472,12 @@ public class MainService extends Service {
 	}
 
 	protected String sendData(String content) {
+		SharedPreferences settings = getSharedPreferences("setting", MODE_PRIVATE);
+		String id = settings.getString("id", MainActivity.DEFAULT_ID);
 		try {
 			HttpURLConnection connection;
 			URL server;
-			server = new URL(URL + "?id=" + ID + "&data=" + content);
+			server = new URL(URL + "?id=" + id + "&data=" + content);
 			connection = (HttpURLConnection)server.openConnection();
 			connection.setReadTimeout(10 * 1000);
 			connection.setRequestMethod("GET");
