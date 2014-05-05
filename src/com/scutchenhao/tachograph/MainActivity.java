@@ -51,7 +51,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	public final static int TURN_RIGHT = 2;
 	public final static int DRAG_SENSITIVITY = 2500;
 	public final static String DEFAULT_ID = "car1";
-	protected final static int TAKE_PICTURE_AMOUNT = 5;
+	protected final static int TAKE_PICTURE_AMOUNT = 3;
 	protected final static int TAKE_PICTURE_DELAY = 1000;
 	protected final static String TAG = "ScutTachograph:Activity";
 	protected final static boolean DEBUG = true;
@@ -140,7 +140,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		}
 		
 	};
-	@SuppressLint("NewApi")
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -162,15 +162,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         mGestureDetector.setIsLongpressEnabled(true);
 
         mMediaRecorder = new MediaRecorder();
-        mCamera = Camera.open();
-		Camera.Parameters parameters = mCamera.getParameters();
-		supportedVideoSizes = parameters.getSupportedVideoSizes();
-    	loadSettings();
-    	parameters.setPreviewSize(widthSetting, heightSetting);
-    	mCamera.setParameters(parameters);
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1)
-        	mCamera.enableShutterSound(false);
 
         mStorageManager = new StorageManager(this, storageSetting, remainStorage);
         int ret = mStorageManager.check();
@@ -187,6 +178,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
 	}
 
+	@SuppressLint("NewApi")
 	@Override
 	protected void onStart() {
 		super.onStart();
@@ -200,6 +192,16 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	    mSensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);
         Sensor mAccelerateSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         mSensorManager.registerListener(mSensorEventListener, mAccelerateSensor, SensorManager.SENSOR_DELAY_NORMAL);
+
+        mCamera = Camera.open();
+		Camera.Parameters parameters = mCamera.getParameters();
+		supportedVideoSizes = parameters.getSupportedVideoSizes();
+    	loadSettings();
+    	parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
+    	parameters.setPreviewSize(widthSetting, heightSetting);
+    	mCamera.setParameters(parameters);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1)
+        	mCamera.enableShutterSound(false);
 	}
 
 	@Override
@@ -257,7 +259,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 			e.printStackTrace();
 		}
     	mCamera.startPreview();
-		mCamera.autoFocus(null);
 	}
 
 	@Override
@@ -550,7 +551,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		    	parameters.setPreviewSize(widthSetting, heightSetting);
 		    	mCamera.setParameters(parameters);
 		    	mCamera.startPreview();
-		    	mCamera.autoFocus(null);
 			}
         });
         loadDialogPreferences(preferenceView);
