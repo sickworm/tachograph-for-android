@@ -48,7 +48,6 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
@@ -56,7 +55,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	public final static int TURN_RIGHT = 2;
 	public final static int DRAG_SENSITIVITY = 3500;
 	public final static String DEFAULT_ID = "car1";
-	protected final static int TAKE_PICTURE_AMOUNT = 3;
+	protected final static int TAKE_PICTURE_AMOUNT = 5;
 	protected final static int TAKE_PICTURE_DELAY = 1000;
 	protected final static String TAG = "ScutTachograph:Activity";
 	protected final static boolean DEBUG = true;
@@ -166,7 +165,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         stop = (Button) this.findViewById(R.id.stop);
         setting = (ImageButton) this.findViewById(R.id.setting);
 		log = (TextView) findViewById(R.id.log);
-        log.setMovementMethod(ScrollingMovementMethod.getInstance());
         scroll = (ScrollView) findViewById(R.id.scroll);
         start.setOnClickListener(new TestVideoListener());
         stop.setOnClickListener(new TestVideoListener());
@@ -479,11 +477,16 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		LayoutParams params = scroll.getLayoutParams();
 		float d = getResources().getDisplayMetrics().density;
 		if (isExpanding)
-			params.height = (int)(50 * d);
+			params.height = (int)(60 * d);
 		else
-			params.height = (int)(150 * d);
+			params.height = (int)(180 * d);
 		isExpanding = !isExpanding;
 		scroll.setLayoutParams(params);
+		scroll.post(new Runnable() {
+	        public void run() {
+	        	scroll.fullScroll(ScrollView.FOCUS_DOWN);
+	        }
+		});
 	}
 	
 	private void loadSettings() {
