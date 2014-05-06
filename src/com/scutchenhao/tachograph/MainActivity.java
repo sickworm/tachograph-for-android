@@ -59,9 +59,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	protected final static int TAKE_PICTURE_DELAY = 1000;
 	protected final static String TAG = "ScutTachograph:Activity";
 	protected final static boolean DEBUG = true;
-	private final static int LOG_TOAST = 1;
-	private final static int LOG_SHOW_TEXT = 2;
-	private final static int LOG_FROM_SERVICE = 3;
+	protected final static int LOG_TOAST = 1;
+	protected final static int LOG_SHOW_TEXT = 2;
+	protected final static int LOG_FROM_SERVICE = 3;
 	private Button start;
     private Button stop;
     private ImageButton setting;
@@ -443,12 +443,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
 	}
 	
-	private void log(String log) {
+	protected void log(String log) {
 		if(DEBUG)
 			Log.v(TAG, log);
 	}
 
-	private void log(String data, int type) {
+	protected void log(String data, int type) {
 		switch(type) {
 		case LOG_TOAST:
 			Toast.makeText(MainActivity.this, data, Toast.LENGTH_SHORT).show();
@@ -612,7 +612,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 IBinder service) {
         		serviceBinder = (LocalBinder)service;
                 mService = serviceBinder.getService();
-                log.setText(mService.getLog());
+                log.append(mService.getLog());
         }
 
         @Override

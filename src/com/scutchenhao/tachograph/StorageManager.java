@@ -8,12 +8,10 @@ import java.util.Date;
 import java.util.Locale;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Environment;
 import android.os.StatFs;
-import android.util.Log;
 
 public class StorageManager {
 	public final static String TAG = "ScutTachograph:StorageManager";
@@ -28,17 +26,17 @@ public class StorageManager {
 	public final static int CREATE_DIR_FAILED = 4;
 	public final static boolean TYPE_HAS_SUBDIR = true;
 	public final static boolean TYPE_NO_SUBDIR = false;
-	private Context mContext;	//MB
+	private MainActivity mMainActivity;	//MB
 	private int storage;	//MB
 	private int remainStorage;	//MB
 	private long availStorage = 0;	//MB
 	private String fileName = "";
 	
-	protected StorageManager(Context mContext) {
-		this.mContext = mContext;
+	protected StorageManager(MainActivity mMainActivity) {
+		this.mMainActivity = mMainActivity;
 	}
-	protected StorageManager(Context mContext, int storage, int remainStorage) {
-		this.mContext = mContext;
+	protected StorageManager(MainActivity mMainActivity, int storage, int remainStorage) {
+		this.mMainActivity = mMainActivity;
 		this.storage = storage;
 		this.remainStorage = remainStorage;
 	}
@@ -70,9 +68,10 @@ public class StorageManager {
 		long recordFileSize = 0;
 		try {
 			dirSize = getFileSizes(new File(RECORD_PATH), TYPE_HAS_SUBDIR) / 1024 / 1024;
-			log("文件夹大小：" + dirSize + "MB");
+			log("文件夹大小：" + dirSize + "MB", MainActivity.LOG_SHOW_TEXT);
 			recordFileSize = getFileSizes(new File(RECORD_PATH), TYPE_NO_SUBDIR) / 1024 / 1024;
-			log("录像文件大小：" + recordFileSize + "MB");
+			log("录像文件大小：" + recordFileSize + "MB", MainActivity.LOG_SHOW_TEXT);
+			log("日志及图片文件大小：" + (dirSize - recordFileSize) + "MB", MainActivity.LOG_SHOW_TEXT);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -148,7 +147,7 @@ public class StorageManager {
 
 	public void fileScan(String file){
         Uri data = Uri.parse("file:///" + file);
-        mContext.sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, data));
+        mMainActivity.sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, data));
 	}
 
 	public void savePhoto(byte[] data) {
@@ -168,10 +167,10 @@ public class StorageManager {
 	    	fileScan(file.getPath());
 	    	photoData.close();
 		} catch (IOException e) {
-			log("保存图片失败");
+			log("快照：保存照片失败", MainActivity.LOG_SHOW_TEXT);
 			return;
 		}
-		log("保存图片:" + shortFileName);
+		log("保存图片:" + shortFileName, MainActivity.LOG_SHOW_TEXT);
 	}
 	
 	private boolean sdCardAvail() {
@@ -179,7 +178,7 @@ public class StorageManager {
         if (Environment.MEDIA_MOUNTED.equals(state)) {
             return true;
         } else {
-        	log("SD未挂载");
+        	log("SD卡未挂载", MainActivity.LOG_SHOW_TEXT);
         	return false;
         }
     }
@@ -227,14 +226,14 @@ public class StorageManager {
     		size = fis.available();
     		fis.close();
     	}
-    	else{
-    		log("文件不存在!");
-    	}
     	return size;
     }
 
 	private void log(String log) {
-		if(DEBUG)
-			Log.i(TAG, log);
+		mMainActivity.log(log);
+	}
+
+	private void log(String log,int type) {
+		mMainActivity.log(log, type);
 	}
 }

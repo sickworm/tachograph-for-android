@@ -34,7 +34,6 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
-import android.widget.Toast;
 
 public class MainService extends Service {
 	public static final String TAG = "ScutTachograph:Service";
@@ -420,7 +419,6 @@ public class MainService extends Service {
             if (firstLocated == 1) {
                 firstLocatedTime = System.currentTimeMillis();
             	sendLog("首次定位成功，维度：" +  latitude + "，经度：" + longitude);
-        		Toast.makeText(MainService.this, "首次定位成功，维度：" +  latitude + "，经度：" + longitude, Toast.LENGTH_SHORT).show();
             	locationManager.removeUpdates(gprsListener);
         		locationList.clear();
             	firstLocated++;
@@ -519,7 +517,6 @@ public class MainService extends Service {
 	
 	public void saveLocation() {
 		if(!hasSdcard()) {
-			Toast.makeText(this, "未找到sdcard，储存失败", Toast.LENGTH_SHORT).show();
 			return;
 		}
 
@@ -563,8 +560,6 @@ public class MainService extends Service {
 			sendLog("创建文件失败");
 			return;
 		}
-		
-		Toast.makeText(this, "储存成功，共储存" + locationList.size() + "个GPS信息", Toast.LENGTH_SHORT).show();
 	}
 	
 	public List<MyGpsLocation> loadLocation() {
