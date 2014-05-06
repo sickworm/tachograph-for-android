@@ -63,4 +63,16 @@
         <item>20min</item>
         <item>30min</item>
     </string-array>
+    
+    <integer-array name="quality">
+        <item>60</item>
+        <item>40</item>
+        <item>20</item>
+    </integer-array>
+    
+    <string-array name="quality_name">
+        <item>高</item>
+        <item>中</item>
+        <item>低</item>
+    </string-array>
 </resources>

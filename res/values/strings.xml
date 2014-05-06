@@ -7,6 +7,7 @@
     <string name="save_location">保存路径</string>
     <string name="start">开始录像</string>
     <string name="stop">停止录像</string>
+    <string name="record_profile">录像分辨率</string>
     <string name="record_quality">录像质量</string>
     <string name="record_storage">储存空间</string>
     <string name="record_time">分段录像长度</string>
