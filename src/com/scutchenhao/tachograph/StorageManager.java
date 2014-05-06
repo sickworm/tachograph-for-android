@@ -29,14 +29,17 @@ public class StorageManager {
 	public final static boolean TYPE_HAS_SUBDIR = true;
 	public final static boolean TYPE_NO_SUBDIR = false;
 	private Context mContext;	//MB
-	private int size;	//MB
+	private int storage;	//MB
 	private int remainStorage;	//MB
 	private long availStorage = 0;	//MB
 	private String fileName = "";
 	
-	protected StorageManager(Context mContext, int size, int remainStorage) {
+	protected StorageManager(Context mContext) {
 		this.mContext = mContext;
-		this.size = size;
+	}
+	protected StorageManager(Context mContext, int storage, int remainStorage) {
+		this.mContext = mContext;
+		this.storage = storage;
 		this.remainStorage = remainStorage;
 	}
 	
@@ -73,7 +76,8 @@ public class StorageManager {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		if (size - recordFileSize >= availStorage) {
+		checkAvailStorage();
+		if (storage - recordFileSize >= availStorage) {
 			return STORAGE_NOT_ENOUGH;
 		}
 		return STORAGE_AVAILABLE;
@@ -85,15 +89,61 @@ public class StorageManager {
 			return ret;
 
 		if (afterRecording) {
-			if (availStorage + remainStorage >= size)
-				;//should do something
+			checkAvailStorage();
+			while (availStorage + remainStorage >= storage) {
+				File file = findOldestFile(new File(ROOT_PATH));
+				if(file == null)
+					return STORAGE_NOT_ENOUGH;
+				else
+					file.delete();
+				checkAvailStorage();
+			}
 			fileScan(fileName);
 		}
 		return ret;
 	}
 	
-	protected void resetStorage(int size) {
-		this.size = size;
+	public File findOldestFile(File dir) {
+		File fList[] = dir.listFiles();
+		int oldestFilePos = 0;
+		for (int i = 1; i < fList.length; i++) {
+			if(fList[i].isDirectory()) {
+				File subDirFile = findOldestFile(fList[i]);
+				if (subDirFile == null)
+					continue;
+				long timeNumber = fileNameToNumber(subDirFile);
+				if(timeNumber < fileNameToNumber(fList[oldestFilePos]))
+					oldestFilePos = i;
+			} else {
+				long timeNumber = fileNameToNumber(fList[i]);
+				long oldestTimeNumber = fileNameToNumber(fList[oldestFilePos]);
+				if(timeNumber < oldestTimeNumber)
+					oldestFilePos = i;
+			}
+		}
+		if(fList.length == 0)
+			return null;
+		else
+			return fList[oldestFilePos];
+	}
+	
+	private long fileNameToNumber(File file) {
+		String fileName = file.getPath();
+		fileName = fileName.substring(fileName.lastIndexOf('/') + 1);
+		fileName = fileName.substring(0, fileName.indexOf('.'));
+		fileName = fileName.replace("-", "");
+		fileName = fileName.replace(":", "");
+		try {
+			long timeNumber = Long.parseLong(fileName);
+			return timeNumber;
+		} catch (NumberFormatException e) {
+			return -1;					//delete the unformat file first
+		}
+	}
+	
+	protected void reset(int storage, int remainStorage) {
+		this.storage = storage;
+		this.remainStorage = remainStorage;
 	}
 
 	public void fileScan(String file){
@@ -124,23 +174,9 @@ public class StorageManager {
 		log("±£´æÍ¼Æ¬:" + shortFileName);
 	}
 	
-    @SuppressLint("NewApi")
-	@SuppressWarnings("deprecation")
-	protected boolean sdCardAvail() {
+	private boolean sdCardAvail() {
         String state = Environment.getExternalStorageState();
         if (Environment.MEDIA_MOUNTED.equals(state)) {
-            File sdcardDir = Environment.getExternalStorageDirectory();
-            StatFs sf = new StatFs(sdcardDir.getPath());
-            long blockSize, availCount;
-            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.KITKAT) {
-	            blockSize = sf.getBlockSize();
-	            availCount = sf.getAvailableBlocks();
-            } else {
-	            blockSize = sf.getBlockSizeLong();
-	            availCount = sf.getAvailableBlocksLong();
-            }
-            availStorage = availCount * blockSize / 1024 / 1024;
-            log("Ê£Óà¿Õ¼ä:"+ availStorage +"MB");
             return true;
         } else {
         	log("SDÎ´¹ÒÔØ");
@@ -148,18 +184,35 @@ public class StorageManager {
         }
     }
 
+    @SuppressLint("NewApi")
+	@SuppressWarnings("deprecation")
+    private void checkAvailStorage() {
+        File sdcardDir = Environment.getExternalStorageDirectory();
+        StatFs sf = new StatFs(sdcardDir.getPath());
+        long blockSize, availCount;
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.KITKAT) {
+            blockSize = sf.getBlockSize();
+            availCount = sf.getAvailableBlocks();
+        } else {
+            blockSize = sf.getBlockSizeLong();
+            availCount = sf.getAvailableBlocksLong();
+        }
+        availStorage = availCount * blockSize / 1024 / 1024;
+        log("Ê£Óà¿Õ¼ä:"+ availStorage +"MB");
+    }
+    
     private long getFileSizes(File f, boolean type) throws Exception
     {
 	    long size = 0;
-	    File flist[] = f.listFiles();
-	    for (int i = 0; i < flist.length; i++){
-	    	if (flist[i].isDirectory()){
+	    File fList[] = f.listFiles();
+	    for (int i = 0; i < fList.length; i++){
+	    	if (fList[i].isDirectory()){
 	    		if (type == TYPE_NO_SUBDIR)
 	    			continue;
-	    		size = size + getFileSizes(flist[i], TYPE_HAS_SUBDIR);
+	    		size = size + getFileSizes(fList[i], TYPE_HAS_SUBDIR);
 	    	}
 	    	else{
-	    		size =size + getFileSize(flist[i]);
+	    		size =size + getFileSize(fList[i]);
 	    	}
 	    }
 	    return size;

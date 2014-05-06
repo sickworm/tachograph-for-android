@@ -79,7 +79,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	private int timeSettingPos;
 	private int qualitySettingPos;
 	private int storageSetting;		//MB
-	private int remainStorage;		//MB
+	private int remainStorageSetting;		//MB
 	private int timeSetting;		//s
 	private int qualitySetting;		//%
 	private int widthSetting;
@@ -178,6 +178,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		mGestureDetector = new GestureDetector(this, mGestureListener, null);
         mGestureDetector.setIsLongpressEnabled(true);
 
+        mStorageManager = new StorageManager(this);
         mMediaRecorder = new MediaRecorder();
         mMediaRecorder.setOnInfoListener(new OnInfoListener() {
         	@Override
@@ -203,7 +204,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         getQualityProfile();
     	loadSettings();
         
-        mStorageManager = new StorageManager(this, storageSetting, remainStorage);
         int ret = mStorageManager.check();
         switch(ret) {
         case StorageManager.STORAGE_AVAILABLE:
@@ -216,7 +216,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         	start.setEnabled(false);
         	break;
         }
-
 	}
 
 	@Override
@@ -270,11 +269,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		mCamera = null;
 		mMediaRecorder.release();
 		mMediaRecorder = null;
-		
-		unbindService(mConnection);
-		mSensorManager.unregisterListener(mSensorEventListener);
-		
+
         unregisterReceiver(receiver);
+		mSensorManager.unregisterListener(mSensorEventListener);
+		unbindService(mConnection);
 	}
 	
 
@@ -341,7 +339,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		mMediaRecorder.setVideoEncodingBitRate(bitRate);
         mMediaRecorder.setMaxDuration(timeSetting * 1000);
         
-        //文件体积=时间X码率/8
         if (!mStorageManager.checkNewRecordFile()) {
             log("录像文件错误", LOG_TOAST);
             return false;
@@ -400,11 +397,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         CamcorderProfile profile = profileList.get(profileSettingPos);
         int bitRate = profile.videoBitRate * (qualitySetting / 100);
         log("录像分辨率：" + widthSetting + "x" + heightSetting, LOG_SHOW_TEXT);
-        log("录像时间：" + (timeSetting/60) + "m", LOG_SHOW_TEXT);
+        log("录像分段时长：" + (timeSetting/60) + "分钟", LOG_SHOW_TEXT);
         log("录像比特率：" + bitRate, LOG_SHOW_TEXT);
 	}
 	
-	private void stopRecording() {		
+	private void stopRecording() {
 		//stop when start time less than 1s may lead software crash:stop failed: -1007
 		//should delay some time
     	setRecordState(false);
@@ -465,7 +462,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		default:
 			break;
 		}
-		log.append(data + "\n");		//if you set android:maxlines, i can not work
+		log.append(data + "\n");		//if you set android:maxlines, it can not work
 		scroll.post(new Runnable() {
 	        public void run() {
 	        	scroll.fullScroll(ScrollView.FOCUS_DOWN);
@@ -502,6 +499,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		widthSetting = settings.getInt("width", profile.videoFrameWidth);
 		heightSetting = settings.getInt("height", profile.videoFrameHeight);
 		idSetting = settings.getString("id", DEFAULT_ID);
+
+        //文件体积=时间X码率/8
+		int quality = getResources().getIntArray(R.array.quality)[qualitySettingPos];
+		remainStorageSetting = (profile.videoBitRate * quality / 100 + profile.audioBitRate) * timeSetting / 8;
+		remainStorageSetting = (int) (remainStorageSetting * 1.2);
+		mStorageManager.reset(storageSetting, remainStorageSetting);
 	}
 	
 	private void settings() {
@@ -545,7 +548,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		        mEditor.putString("id", idName);
 		        
 		        mEditor.commit();
-		        mStorageManager.resetStorage(storage[pos]);
 		
 		        loadSettings();
 				mCamera.stopPreview();

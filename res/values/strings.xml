@@ -10,7 +10,7 @@
     <string name="record_profile">录像分辨率</string>
     <string name="record_quality">录像质量</string>
     <string name="record_storage">储存空间</string>
-    <string name="record_time">分段录像长度</string>
+    <string name="record_time">录像分段时长</string>
     <string name="id">用户id</string>
 
 </resources>
