@@ -90,6 +90,8 @@ public class MainService extends Service {
 	public void onDestroy() {
 		super.onDestroy();
 		sendFlag = false;
+		recordFlag = false;
+    	gpsFlag = false;
 		try {
 			gpsFileStream.close();
 			if (!hasGpsData) {
@@ -103,7 +105,6 @@ public class MainService extends Service {
 			sendLog("文件关闭失败");
 		}
 		sendLog("程序退出");
-    	gpsFlag = false;
     	locationManager.removeGpsStatusListener(gpsStatusListener);
     	locationManager.removeUpdates(gpsListener);
     	locationManager.removeUpdates(gprsListener);
