@@ -23,7 +23,7 @@
 			    android:layout_width="wrap_content"
 			    android:layout_height="wrap_content"
 			    android:layout_centerVertical="true"
-			    android:textAppearance="?android:attr/textAppearanceMedium" 
+			    android:textAppearance="?android:attr/textAppearanceSmall" 
 			    android:text="@string/record_profile" />
 	
 		     <Spinner
@@ -48,7 +48,7 @@
 			    android:layout_width="wrap_content"
 			    android:layout_height="wrap_content"
 			    android:layout_centerVertical="true"
-			    android:textAppearance="?android:attr/textAppearanceMedium" 
+			    android:textAppearance="?android:attr/textAppearanceSmall" 
 			    android:text="@string/record_quality" />
 	
 		     <Spinner
@@ -75,7 +75,7 @@
 			    android:layout_height="wrap_content"
 			    android:layout_centerVertical="true"
 			    android:text="@string/record_storage"
-			    android:textAppearance="?android:attr/textAppearanceMedium" />
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
 	
 			<Spinner
 		         android:id="@+id/storage_select"
@@ -85,8 +85,51 @@
 		         android:layout_alignParentTop="true" 
 		         android:entries="@array/storage_name" />
 		</RelativeLayout>
-	
 		
+		<ImageView   
+	        android:layout_width="fill_parent"
+	        android:layout_height="1dp"
+		    android:layout_marginLeft="5dp"
+		    android:layout_marginRight="5dp"
+	        android:background="#aaaaaa" 
+	        android:contentDescription="@string/app_name"/>  
+	
+		<RelativeLayout
+		    android:layout_width="match_parent"
+		    android:layout_height="wrap_content"
+		    android:orientation="vertical"
+		    android:layout_marginLeft="@dimen/activity_horizontal_margin"
+		    android:layout_marginRight="@dimen/activity_horizontal_margin"
+		    android:layout_marginTop="@dimen/activity_horizontal_margin"
+		    android:layout_marginBottom="@dimen/activity_horizontal_margin" >
+	
+			<TextView
+			    android:id="@+id/record_avail_time_name"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"
+			    android:layout_centerVertical="true"
+			    android:layout_centerHorizontal="true"
+			    android:text="@string/record_avail_time_name"
+			    android:textColor="#555555"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+			<TextView
+			    android:id="@+id/record_avail_time"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"
+			    android:layout_toRightOf="@id/record_avail_time_name"
+			    android:textColor="#555555"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+		</RelativeLayout>
+		
+		<ImageView   
+	        android:layout_width="fill_parent"
+	        android:layout_height="1dp"
+		    android:layout_marginLeft="5dp"
+		    android:layout_marginRight="5dp"
+	        android:background="#aaaaaa" 
+	        android:contentDescription="@string/app_name"/>  
+	        
 		<RelativeLayout
 		    android:layout_width="wrap_content"
 		    android:layout_height="wrap_content"
@@ -102,7 +145,7 @@
 			    android:layout_height="wrap_content"
 			    android:layout_centerVertical="true"
 			    android:text="@string/record_time"
-			    android:textAppearance="?android:attr/textAppearanceMedium" />
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
 	
 			<Spinner
 		         android:id="@+id/time_select"
@@ -128,7 +171,7 @@
 			    android:layout_height="wrap_content"
 			    android:layout_centerVertical="true"
 			    android:text="@string/id"
-			    android:textAppearance="?android:attr/textAppearanceMedium" />
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
 			<EditText
 			    android:id="@+id/id"
 			    android:layout_width="200dp"

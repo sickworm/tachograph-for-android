@@ -12,5 +12,6 @@
     <string name="record_storage">储存空间</string>
     <string name="record_time">录像分段时长</string>
     <string name="id">用户id</string>
+    <string name="record_avail_time_name">可录像总时长：</string>
 
 </resources>

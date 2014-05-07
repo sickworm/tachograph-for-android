@@ -40,6 +40,8 @@ import android.view.View;
 import android.view.GestureDetector.OnGestureListener;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup.LayoutParams;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -78,13 +80,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	private int profileSettingPos;
 	private int timeSettingPos;
 	private int qualitySettingPos;
-	private int storageSetting;		//MB
-	private int remainStorageSetting;		//MB
-	private int timeSetting;		//s
-	private int qualitySetting;		//%
+	private int storageSetting;			//MB
+	private int remainStorageSetting;	//MB
+	private int timeSetting;			//s
+	private int qualitySetting;			//%
 	private int widthSetting;
 	private int heightSetting;
 	private String idSetting = "";
+	private View preferenceView;
 	private List<CamcorderProfile> profileList = new ArrayList<CamcorderProfile>();
 	private List <String> profileNameList = new ArrayList<String>();
 	private SensorManager mSensorManager;
@@ -153,6 +156,37 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	    	}
 	    }
     };
+    OnItemSelectedListener calculateTimeListener = new OnItemSelectedListener() {
+
+		@Override
+		public void onItemSelected(AdapterView<?> arg0, View arg1, int arg2,
+				long arg3) {
+			Spinner recordProfile = (Spinner) preferenceView.findViewById(R.id.profile_select);
+			Spinner recordStorage = (Spinner) preferenceView.findViewById(R.id.storage_select);
+			Spinner recordQuality = (Spinner) preferenceView.findViewById(R.id.time_select);
+			int pos = recordProfile.getSelectedItemPosition();
+			int videoBitRate = profileList.get(pos).videoBitRate;
+			int audioBitRate = profileList.get(pos).audioBitRate;
+			pos = recordStorage.getSelectedItemPosition();
+			int storage = getResources().getIntArray(R.array.storage)[pos];
+			pos = recordQuality.getSelectedItemPosition();
+			int quality = getResources().getIntArray(R.array.quality)[pos];
+			
+			long storageB = (long)storage * 1024 * 1024;
+			int storagePerSec = (videoBitRate * quality / 100 + audioBitRate) / 8;
+			int availTime = (int)(storageB / storagePerSec);
+			int hour = availTime / 3600;
+			int min = availTime % 3600 / 60;
+			String sTime = ((hour == 0)?"" : (hour + "小时")) + min + "分钟";
+			TextView availTimeView = (TextView) preferenceView.findViewById(R.id.record_avail_time);
+			availTimeView.setText(sTime);
+		}
+
+		@Override
+		public void onNothingSelected(AdapterView<?> arg0) {
+		}
+    	
+    };
     
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -170,6 +204,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         stop.setOnClickListener(new TestVideoListener());
         setting.setOnClickListener(new TestVideoListener());
         log.setOnClickListener(new TestVideoListener());
+        preferenceView = LayoutInflater.from(this).inflate(R.layout.settings_dialog, null);
         
         setRecordState(false);
         mSurfaceView = (SurfaceView) this.findViewById(R.id.surfaceview);
@@ -508,8 +543,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	}
 	
 	private void settings() {
-        final View preferenceView = LayoutInflater.from(this).inflate(
-                R.layout.settings_dialog, null);
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setView(preferenceView);
         builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
@@ -579,6 +612,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         
         EditText id = (EditText) preferenceView.findViewById(R.id.id);
         id.setText(idSetting);
+
+        recordProfile.setOnItemSelectedListener(calculateTimeListener);
+        recordStorage.setOnItemSelectedListener(calculateTimeListener);
+        recordQuality.setOnItemSelectedListener(calculateTimeListener);
 	}
 	
 	@SuppressLint("InlinedApi")
