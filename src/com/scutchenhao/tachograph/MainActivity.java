@@ -373,7 +373,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         mMediaRecorder.setProfile(profile);
 		mMediaRecorder.setVideoEncodingBitRate(bitRate);
         mMediaRecorder.setMaxDuration(timeSetting * 1000);
-        
         if (!mStorageManager.checkNewRecordFile()) {
             log("录像文件错误", LOG_TOAST);
             return false;
@@ -452,6 +451,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         try {
 	        if (mMediaRecorder != null) {
 	            mMediaRecorder.stop();
+	            mMediaRecorder.reset();		//we need this fucking reset to reset recording time, or setMaxDuration can't work
 	            int ret = mStorageManager.refreshDir(true);
 	            switch(ret) {
 	            case StorageManager.STORAGE_AVAILABLE:
@@ -460,7 +460,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	            case StorageManager.STORAGE_UNMOUNT:
 	            case StorageManager.STORAGE_NOT_ENOUGH:
 	            default:
-	            	log("储存空间不足", LOG_TOAST);
+	            	log("储存空间不足，请删除SD卡文件再试", LOG_TOAST);
 	            	start.setEnabled(false);
 	            	return;
 	            }
@@ -472,7 +472,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 	            mMediaRecorder.prepare();
 	            mMediaRecorder.start();
 	        }
-            log("开始录像", LOG_TOAST);
+            log("开始录像", LOG_SHOW_TEXT);
         } catch (Exception e) {
             e.printStackTrace();
         }
