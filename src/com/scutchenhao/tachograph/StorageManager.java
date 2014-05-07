@@ -30,6 +30,7 @@ public class StorageManager {
 	private int storage;	//MB
 	private int remainStorage;	//MB
 	private long availStorage = 0;	//MB
+	private long dirSize = 0;	//MB
 	private String fileName = "";
 	
 	protected StorageManager(MainActivity mMainActivity) {
@@ -64,7 +65,7 @@ public class StorageManager {
 		if (!sdCardAvail())
 			return STORAGE_UNMOUNT;
 		
-		long dirSize = 0;
+		dirSize = 0;
 		long recordFileSize = 0;
 		try {
 			dirSize = getFileSizes(new File(RECORD_PATH), TYPE_HAS_SUBDIR) / 1024 / 1024;
@@ -88,49 +89,54 @@ public class StorageManager {
 			return ret;
 
 		if (afterRecording) {
-			checkAvailStorage();
-	        log("Ê£Óà¿Õ¼ä:"+ availStorage +"MB");
-			while (availStorage + remainStorage <= storage) {
+	        log("Ê£Óà¿Õ¼ä:"+ (storage - dirSize) +"MB");
+			while (dirSize + remainStorage >= storage) {
 				File file = findOldestFile(new File(ROOT_PATH));
-				if(file == null) {	
+				if(file == null) {
 					return STORAGE_NOT_ENOUGH;
 				} else {
 					log("¿Õ¼ä²»×ã£¬É¾³ýÎÄ¼þ£º" + file.getName());
 					file.delete();
 				}
-				checkAvailStorage();
+				try {
+					dirSize = getFileSizes(new File(RECORD_PATH), TYPE_HAS_SUBDIR) / 1024 / 1024;
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+		        log("Ê£Óà¿Õ¼ä:"+ (storage - dirSize) +"MB");
 			}
-	        log("Ê£Óà¿Õ¼ä:"+ availStorage +"MB");
-			fileScan(fileName);
 		}
+		fileScan(fileName);
 		return ret;
 	}
 	
 	public File findOldestFile(File dir) {
 		File fList[] = dir.listFiles();
-		int oldestFilePos = 0;
-		for (int i = 1; i < fList.length; i++) {
+		File oldestFile = null;
+		for (int i = 0; i < fList.length; i++) {
 			if(fList[i].isDirectory()) {
 				File subDirFile = findOldestFile(fList[i]);
 				if (subDirFile == null)
 					continue;
 				long timeNumber = fileNameToNumber(subDirFile);
-				if(timeNumber < fileNameToNumber(fList[oldestFilePos]))
-					oldestFilePos = i;
+				if(timeNumber < fileNameToNumber(oldestFile))
+					oldestFile = subDirFile;
 			} else {
 				long timeNumber = fileNameToNumber(fList[i]);
-				long oldestTimeNumber = fileNameToNumber(fList[oldestFilePos]);
+				long oldestTimeNumber = fileNameToNumber(oldestFile);
 				if(timeNumber < oldestTimeNumber)
-					oldestFilePos = i;
+					oldestFile = fList[i];
 			}
 		}
 		if(fList.length == 0)
 			return null;
 		else
-			return fList[oldestFilePos];
+			return oldestFile;
 	}
 	
 	private long fileNameToNumber(File file) {
+		if (file == null)
+			return Long.MAX_VALUE;		//first time compare, file have not initialized
 		String fileName = file.getName();
 		int classIndex = fileName.indexOf('.');
 		if(classIndex <= 0)

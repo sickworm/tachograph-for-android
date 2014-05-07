@@ -239,18 +239,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         getQualityProfile();
     	loadSettings();
         
-        int ret = mStorageManager.check();
-        switch(ret) {
-        case StorageManager.STORAGE_AVAILABLE:
-        	log("储存空间充足", LOG_SHOW_TEXT);
-        	break;
-        case StorageManager.STORAGE_UNMOUNT:
-        case StorageManager.STORAGE_NOT_ENOUGH:
-        default:
-        	log("储存空间不足", LOG_SHOW_TEXT);
-        	start.setEnabled(false);
-        	break;
-        }
+    	storageCheck(true);
 	}
 
 	@Override
@@ -398,18 +387,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 	
 	private void startRecording() {
-		int ret = mStorageManager.refreshDir(false);
-		switch(ret) {
-        case StorageManager.STORAGE_AVAILABLE:
-        	log("储存空间可用");
-        	break;
-        case StorageManager.STORAGE_UNMOUNT:
-        case StorageManager.STORAGE_NOT_ENOUGH:
-        default:
-        	log("储存空间异常");
-        	start.setEnabled(false);
-        	return;
-        }
+		storageCheck(false);
     	setRecordState(true);
     	if (!mediaRecorderConfig()) {
     		stop.setEnabled(false);
@@ -537,7 +515,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         //文件体积=时间X码率/8
 		int quality = getResources().getIntArray(R.array.quality)[qualitySettingPos];
-		remainStorageSetting = (profile.videoBitRate * quality / 100 + profile.audioBitRate) * timeSetting / 8;
+		remainStorageSetting = (profile.videoBitRate * quality / 100 + profile.audioBitRate) * timeSetting / 8 / 1024 / 1024;
 		remainStorageSetting = (int) (remainStorageSetting * 1.2);
 		mStorageManager.reset(storageSetting, remainStorageSetting);
 	}
@@ -588,6 +566,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		    	parameters.setPreviewSize(widthSetting, heightSetting);
 		    	mCamera.setParameters(parameters);
 		    	mCamera.startPreview();
+		    	
+		    	storageCheck(false);
 			}
         });
         loadDialogPreferences(preferenceView);
@@ -639,7 +619,22 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 			}
 		}
 	}
-
+	
+	private void storageCheck(boolean afterRecording) {
+        int ret = mStorageManager.refreshDir(afterRecording);
+        switch(ret) {
+        case StorageManager.STORAGE_AVAILABLE:
+        	log("储存空间充足", LOG_SHOW_TEXT);
+        	break;
+        case StorageManager.STORAGE_UNMOUNT:
+        case StorageManager.STORAGE_NOT_ENOUGH:
+        default:
+        	log("储存空间不足", LOG_TOAST);
+        	start.setEnabled(false);
+        	return;
+        }
+    	start.setEnabled(true);
+	}
 	//RefreshService关联
 	private MainService mService;
     private LocalBinder serviceBinder;
@@ -649,7 +644,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 IBinder service) {
         		serviceBinder = (LocalBinder)service;
                 mService = serviceBinder.getService();
-                log.append(mService.getLog());
+                log.setText(mService.getLog() + log.getText());
         }
 
         @Override
