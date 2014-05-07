@@ -28,7 +28,7 @@ import android.view.MotionEvent;
 import android.view.GestureDetector.OnGestureListener;
 import android.widget.Toast;
 
-public class GPSMapActivity extends Activity {
+public class GpsMapActivity extends Activity {
 	private final static String TAG = "ScutTachograph:GpsMapActivity";
 	private boolean firstTime = true;
 	private boolean showLocationFlag = false;
@@ -183,7 +183,7 @@ public class GPSMapActivity extends Activity {
 	
 	private void newActivity(int dir) {
 		Intent intent = new Intent();
-		intent.setClass(GPSMapActivity.this, MainActivity.class);
+		intent.setClass(GpsMapActivity.this, MainActivity.class);
 		intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 		startActivity(intent);
 

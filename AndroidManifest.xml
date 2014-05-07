@@ -47,7 +47,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.scutchenhao.tachograph.GPSMapActivity"
+            android:name="com.scutchenhao.tachograph.GpsMapActivity"
             android:label="@string/app_name"
             android:screenOrientation="landscape">
         </activity>

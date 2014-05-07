@@ -670,7 +670,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
 	private void newActivity(int dir) {
 		Intent intent = new Intent();
-		intent.setClass(MainActivity.this, GPSMapActivity.class);
+		intent.setClass(MainActivity.this, GpsMapActivity.class);
 		intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 		startActivity(intent);
 		if (dir == MainActivity.TURN_LEFT)		//设置切换动画，从右边进入，左边退出
