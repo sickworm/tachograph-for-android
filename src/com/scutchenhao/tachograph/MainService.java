@@ -44,9 +44,10 @@ public class MainService extends Service {
     public boolean sendFlag = true;
     public boolean receiveFlag = true;
     public boolean networkAvailableFlag = false;
-    private boolean gpsFlag = false;
+    private boolean gpsFlag = true;
     private double latitude = 0;
     private double longitude = 0;
+    private long gpsRecordTime = 0;
     private double altitude = 0;
     private int firstLocated = 0;
     private long firstLocatedTime = 0;
@@ -90,11 +91,13 @@ public class MainService extends Service {
 		super.onDestroy();
 		sendFlag = false;
 		try {
+			gpsFileStream.close();
 			if (!hasGpsData) {
-				gpsFileStream.close();
 				gpsFile.delete();
+				sendLog("无GPS数据");
 			} else {
-				sendLog("无数据文件");
+				String path = gpsFile.getPath();
+				sendLog("保存GPS文件：" + path.substring(StorageManager.ROOT_PATH.length()));
 			}
 		} catch (IOException e) {
 			sendLog("文件关闭失败");
@@ -120,10 +123,11 @@ public class MainService extends Service {
     }
 
 
-    private void sendGPS(Location location){
+    private void sendGPS(Location location, long currentTime){
     	Intent mIntent = new Intent(UpdateReceiver.MSG);
     	mIntent.putExtra(UpdateReceiver.DATA_TYPE, UpdateReceiver.GPS_DATA);
     	mIntent.putExtra(UpdateReceiver.DATA, location);
+    	mIntent.putExtra(UpdateReceiver.TIME, currentTime);
         this.sendBroadcast(mIntent);
     }
 
@@ -177,7 +181,7 @@ public class MainService extends Service {
 	        while(sendFlag){
 				if (System.currentTimeMillis() - deltaTime >= SEND_DELTA_TIME) {
 					deltaTime = System.currentTimeMillis();
-					new SendThread(":" + latitude + ":" + longitude).start();
+					new SendThread(":" + latitude + ":" + longitude + ":" + System.currentTimeMillis()).start();
 				}
 	        }
 	    }
@@ -211,14 +215,19 @@ public class MainService extends Service {
 	    		if (data.contains("n"))
 	    			return;
 	    		
+	    		sendFlag = false;			//we got GPS data from other device, this is a receiving client
+	    		gpsFlag = false;
+	    		hasGpsData = false;
 	    		int i = data.indexOf(':');
-	    		int j = data.indexOf(':', data.indexOf(':') + 1);
+	    		int j = data.indexOf(':', i + 1);
+	    		int k = data.indexOf(':', j + 1);
 	    		latitude = Double.parseDouble(data.substring(i + 1, j - 1));
-	    		longitude = Double.parseDouble(data.substring(j + 1));
+	    		longitude = Double.parseDouble(data.substring(j + 1, k - 1));
+	    		gpsRecordTime = Long.parseLong(data.substring(k + 1));
 	    		Location location = new Location(LocationManager.GPS_PROVIDER);
 	    		location.setLatitude(latitude);
 	    		location.setLongitude(longitude);
-	    		sendGPS(location);
+	    		sendGPS(location, gpsRecordTime);
 	    	}
 	    }
     }
@@ -362,7 +371,6 @@ public class MainService extends Service {
     };
 
     private void initLocation() {
-    	gpsFlag = true;
 	    locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
 	    if (locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
             sendLog("GPS模块正常");
@@ -374,7 +382,7 @@ public class MainService extends Service {
         locationManager.addGpsStatusListener(gpsStatusListener);
         List<String> list = locationManager.getAllProviders();
 
-		//gprs定位
+		//GPRS定位
         if (list.contains(LocationManager.NETWORK_PROVIDER))
         	locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, SEND_DELTA_TIME, 0, gprsListener);
 		//GPS 定位
@@ -400,7 +408,8 @@ public class MainService extends Service {
 			        			gpsFileStream.write((time + '\t' + gpsData).getBytes());
 			        			hasGpsData = true;
 						} catch (IOException e) {
-							sendLog("写入GPS数据失败");
+							if(recordFlag)
+								sendLog("写入GPS数据失败");
 						}
 		        	}
 				}
@@ -425,7 +434,7 @@ public class MainService extends Service {
             } else {
             	firstLocated++;
             }
-            sendGPS(location);
+            sendGPS(location, System.currentTimeMillis());
 
             if (firstLocated > 1) {
             	if(altitude == 0)		//基站定位数据，不够准确，忽略掉
@@ -523,6 +532,10 @@ public class MainService extends Service {
 	
 	protected double getLongitude() {
 		return longitude;
+	}
+
+	protected long getGpsRecordTime() {
+		return gpsRecordTime;
 	}
 	
     protected String getLog() {

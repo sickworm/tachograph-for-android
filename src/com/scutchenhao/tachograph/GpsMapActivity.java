@@ -1,5 +1,9 @@
 package com.scutchenhao.tachograph;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 import com.scutchenhao.tachograph.MainService.LocalBinder;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -26,16 +30,20 @@ import android.view.GestureDetector;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.GestureDetector.OnGestureListener;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class GpsMapActivity extends Activity {
 	private final static String TAG = "ScutTachograph:GpsMapActivity";
+	private final static int ZOOM_LEVEL = 15;
 	private boolean firstTime = true;
 	private boolean showLocationFlag = false;
 	private long backTime = 0;
 	private GoogleMap map;
+	private TextView gpsRecordView;
 	private Marker marker;
 	private Location location = new Location(LocationManager.GPS_PROVIDER);
+	private long gpsRecordTime = 0;
     private UpdateReceiver receiver = new UpdateReceiver() {
 	    @Override
 	    public void onReceive(Context context, Intent intent) {
@@ -46,16 +54,25 @@ public class GpsMapActivity extends Activity {
 	    		
 		    	location = (Location)intent.getParcelableExtra(DATA);
 		    	LatLng newLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+		    	double deltaDistance;
+		    	if (!firstTime)
+		    		deltaDistance = calculateDistance(newLatLng, marker.getPosition());
+		    	else
+		    		deltaDistance = -1;
 		    	log("位置：" + location.getLatitude() + "，" + location.getLongitude());
-		    	log("两点距离：" + ((marker == null)?-1 : calculateDistance(newLatLng, marker.getPosition())));
+		    	log("两点距离：" + deltaDistance);
+
+		        gpsRecordTime = intent.getLongExtra(TIME, -1);
+	            Date date = new Date(gpsRecordTime);
+	            SimpleDateFormat sdf = new SimpleDateFormat("hh：mm：ss", Locale.CHINESE);
+	        	gpsRecordView.setText("时间：\t" + sdf.format(date) + "\n经度：\t" + location.getLongitude() + "\n纬度：\t" + location.getLatitude());
 		        if (firstTime) {
 			        marker = map.addMarker(new MarkerOptions()
 				        .position(newLatLng)
 				        .title("我的位置"));
-			        map.moveCamera(CameraUpdateFactory.zoomTo(15));
-		        	map.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
+		        	map.animateCamera(CameraUpdateFactory.newLatLng(newLatLng));
 		        	firstTime = false;
-		        } else if (calculateDistance(newLatLng, marker.getPosition()) >= 0.0005) {
+		        } else if (deltaDistance >= 0.0005) {
 			    	marker.remove();
 	        		map.addPolyline(new PolylineOptions()
 	        				.add(marker.getPosition() , newLatLng)
@@ -64,14 +81,17 @@ public class GpsMapActivity extends Activity {
 			        marker = map.addMarker(new MarkerOptions()
 				        .position(newLatLng)
 				        .title("我的位置"));
-			    	log("画新点");
+			    	log("更新位置");
+			    	double cameraToMarker = calculateDistance(map.getCameraPosition().target, newLatLng);
+			    	if (cameraToMarker >= 0.008)
+			        	map.animateCamera(CameraUpdateFactory.newLatLng(newLatLng));
+			    	log("重新居中");
 		    	}
 	    	}
 	    }
     };
 
 	//RefreshService关联
-    @SuppressWarnings("unused")
 	private MainService mService;
     private LocalBinder serviceBinder;
     private ServiceConnection mConnection = new ServiceConnection() {
@@ -80,6 +100,26 @@ public class GpsMapActivity extends Activity {
                 IBinder service) {
         		serviceBinder = (LocalBinder)service;
                 mService = serviceBinder.getService();
+
+                double latitude = mService.getLatitude();
+                double longitude = mService.getLongitude();
+                gpsRecordTime = mService.getGpsRecordTime();
+                if (latitude == 0 || longitude == 0) {
+                	return;
+                } else {
+                	location.setLatitude(latitude);
+                	location.setLongitude(longitude);
+    		        map.clear();
+    		        map.addMarker(new MarkerOptions()
+	    		        .position(new LatLng(latitude, longitude))
+	    		        .title("我的位置"));
+			        map.moveCamera(CameraUpdateFactory.zoomTo(ZOOM_LEVEL));
+		        	map.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
+		        	long time = System.currentTimeMillis();
+		            Date date = new Date(time);
+		            SimpleDateFormat sdf = new SimpleDateFormat("hh：mm：ss", Locale.CHINESE);
+		        	gpsRecordView.setText("时间：\t" + sdf.format(date) + "\n经度：\t" + longitude + "\n纬度：\t" + latitude);
+                }
         }
 
         @Override
@@ -94,6 +134,8 @@ public class GpsMapActivity extends Activity {
         setContentView(R.layout.activity_map);
         map = ((MapFragment) getFragmentManager().findFragmentById(R.id.map)).getMap();
 
+        gpsRecordView = (TextView) GpsMapActivity.this.findViewById(R.id.gpsRecord);
+        
         //手势识别
 		mGestureDetector = new GestureDetector(this, mGestureListener, null);
         mGestureDetector.setIsLongpressEnabled(true);
@@ -130,6 +172,7 @@ public class GpsMapActivity extends Activity {
 		 * 纬度1秒 = 大约30.9m 
 		 * 200m 约等于 0.002
 		 * 50m 约等于 0.0005
+		 * 800m 约等于 0.008
 		*/
 		double delLat = l1.latitude - l2.latitude;
 		double delLng = l1.longitude - l2.longitude;

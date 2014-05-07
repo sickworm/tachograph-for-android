@@ -9,6 +9,7 @@ public class UpdateReceiver extends BroadcastReceiver{
 	public static final String LOG_DATA = "LOG_DATA";
 	public static final String GPS_DATA = "GPS_DATA";
 	public static final String DATA = "DATA";
+	public static final String TIME = "TIME";
 	public static final String MSG = "com.scutchenhao.bluetoothmodule.msg";
 	
 	@Override
