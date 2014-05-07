@@ -10,32 +10,6 @@
 		  android:id="@+id/map" 
 		  android:layout_width="match_parent" 
 		  android:layout_height="match_parent" 
-		  class="com.google.android.gms.maps.MapFragment"/> 
-	  
-	<RelativeLayout
-	    android:layout_width="match_parent"
-	    android:layout_height="match_parent">
-
-	    <Button
-	        android:id="@+id/show_location"
-	        android:layout_width="wrap_content"
-	        android:layout_height="wrap_content"
-	        android:layout_alignParentBottom="true"
-	        android:layout_alignParentLeft="true"
-	        android:background="@android:drawable/btn_default"
-	        android:onClick="showLocation"
-	        android:text="@string/show_location" />
-
-	    <Button
-	        android:id="@+id/save_location"
-	        android:layout_width="wrap_content"
-	        android:layout_height="wrap_content"
-	        android:layout_above="@+id/show_location"
-	        android:layout_alignParentLeft="true"
-	        android:background="@android:drawable/btn_default"
-	        android:onClick="saveLocation"
-	        android:text="@string/save_location" />
-
-	</RelativeLayout>
+		  class="com.google.android.gms.maps.MapFragment"/> 	  
 	
 </FrameLayout> 

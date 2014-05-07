@@ -1,11 +1,9 @@
 package com.scutchenhao.tachograph;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -172,7 +170,7 @@ public class MainService extends Service {
         }
     }
 
-    public class RecordThread extends Thread {
+    public class SendLoopThread extends Thread {
 	    @Override
 	    public void run() {
 	    	long deltaTime = System.currentTimeMillis();
@@ -384,7 +382,7 @@ public class MainService extends Service {
         	locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, SEND_DELTA_TIME, 0, gpsListener);
 
 
-        Thread gpsThread = new Thread() {
+        Thread gpsFileThread = new Thread() {
 			@Override
 			public void run() {
 				while(gpsFlag) {
@@ -408,7 +406,7 @@ public class MainService extends Service {
 				}
 			}
         };
-        gpsThread.start();
+        gpsFileThread.start();
     }
 	
     private void updateToNewLocation(Location location) {
@@ -422,7 +420,8 @@ public class MainService extends Service {
             	locationManager.removeUpdates(gprsListener);
         		locationList.clear();
             	firstLocated++;
-                new RecordThread().start();
+                new SendLoopThread().start();
+                recordFlag = true;
             } else {
             	firstLocated++;
             }
@@ -515,90 +514,6 @@ public class MainService extends Service {
     	}   	
     }
 	
-	public void saveLocation() {
-		if(!hasSdcard()) {
-			return;
-		}
-
-		try {
-        	File file = new File(FILEDIR + "location_list.txt");
-        	if (!file.exists()){
-                 try {
-					file.createNewFile();
-					sendLog("创建GPS文件" + file.toString());
-				} catch (IOException e) {
-					sendLog("创建文件失败");
-					return;
-				}
-            } else {
-            	if(!file.delete()) {
-					sendLog("删除原有文件失败");
-					return;
-            	} else {
-            		try {
-						file.createNewFile();
-						sendLog("创建GPS文件" + file.toString());
-						
-					} catch (IOException e) {
-						sendLog("创建文件失败");
-						return;
-					}
-            	}
-            }
-        	FileOutputStream locationData = new FileOutputStream(file);
-    		try {
-    			for(MyGpsLocation i: locationList) {
-					locationData.write((i.time + "," + i.latitude + "," + i.longitude + "\n").getBytes());
-				}
-    			locationData.close();
-        	} catch (IOException e) {
-				sendLog("写入位置数据失败");
-				return;
-        	}
-        	
-		} catch (FileNotFoundException e) {
-			sendLog("创建文件失败");
-			return;
-		}
-	}
-	
-	public List<MyGpsLocation> loadLocation() {
-        try {
-        	File file = new File(FILEDIR + "location_list.txt");
-        	List<MyGpsLocation> drawList = new ArrayList<MyGpsLocation>();
-        	if (!file.exists()){
-				sendLog("无位置数据文件");
-            } else {
-            	 BufferedReader locationData = new BufferedReader(new FileReader(file));
-            	 try {
-            		while (true) {
-            			String str = locationData.readLine();
-            			if (str == null)
-            				break;
-            			
-            			 int i = str.indexOf(',');
-            			 int j = str.indexOf(',', i + 1);
-            			 int k = str.indexOf(',', j + 1);
-            			 long time = Long.parseLong(str.substring(0, i));
-            			 double latitude = Double.parseDouble(str.substring(i + 1, j));
-            			 double longitude = Double.parseDouble(str.substring(j + 1, k));
-            			 int fire = Integer.parseInt(str.substring(k + 1));
-            			 drawList.add(new MyGpsLocation(latitude, longitude, time, fire));
-            		}
-            		locationData.close();
-				} catch (IOException e) {
-					sendLog("位置数据格式错误");
-					return null;
-				}
-            }
-            return drawList;
-        } catch (FileNotFoundException e) {
-			sendLog("创建文件失败");
-			return null;
-		}
-
-	}
-	
     /**
      * Activity调用
      */
@@ -609,10 +524,6 @@ public class MainService extends Service {
 	protected double getLongitude() {
 		return longitude;
 	}
-	
-    protected List<MyGpsLocation> getLocationList() {
-    	return loadLocation();
-    }
 	
     protected String getLog() {
     	return log;

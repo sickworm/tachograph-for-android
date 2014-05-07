@@ -1,25 +1,18 @@
 package com.scutchenhao.tachograph;
 
-import java.io.File;
-import java.util.List;
-
 import com.scutchenhao.tachograph.MainService.LocalBinder;
-import com.scutchenhao.tachograph.MainService.MyGpsLocation;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
-import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -27,24 +20,21 @@ import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Message;
-import android.os.Handler.Callback;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.GestureDetector.OnGestureListener;
-import android.view.View;
 import android.widget.Toast;
 
 public class GPSMapActivity extends Activity {
+	private final static String TAG = "ScutTachograph:GpsMapActivity";
 	private boolean firstTime = true;
 	private boolean showLocationFlag = false;
 	private long backTime = 0;
 	private GoogleMap map;
-	private List<MyGpsLocation> locationList;
-	private Thread drawLocationThread = null;
+	private Marker marker;
 	private Location location = new Location(LocationManager.GPS_PROVIDER);
     private UpdateReceiver receiver = new UpdateReceiver() {
 	    @Override
@@ -55,45 +45,34 @@ public class GPSMapActivity extends Activity {
 	    			return;
 	    		
 		    	location = (Location)intent.getParcelableExtra(DATA);
-		        map.clear();
-		        //添加地图标记，设置经纬度。设置点击标记显示的名称，信息，图片
-		        map.addMarker(new MarkerOptions()
-		        .position(new LatLng(location.getLatitude(), location.getLongitude()))
-		        .title("我的位置"));
+		    	LatLng newLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+		    	log("位置：" + location.getLatitude() + "，" + location.getLongitude());
+		    	log("两点距离：" + ((marker == null)?-1 : calculateDistance(newLatLng, marker.getPosition())));
 		        if (firstTime) {
+			        marker = map.addMarker(new MarkerOptions()
+				        .position(newLatLng)
+				        .title("我的位置"));
 			        map.moveCamera(CameraUpdateFactory.zoomTo(15));
 		        	map.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
 		        	firstTime = false;
-		        }
-		        System.out.println(location.getLatitude() + " " + location.getLongitude());
+		        } else if (calculateDistance(newLatLng, marker.getPosition()) >= 0.0005) {
+			    	marker.remove();
+	        		map.addPolyline(new PolylineOptions()
+	        				.add(marker.getPosition() , newLatLng)
+	        				.width(10)
+	        				.color(Color.YELLOW));
+			        marker = map.addMarker(new MarkerOptions()
+				        .position(newLatLng)
+				        .title("我的位置"));
+			    	log("画新点");
+		    	}
 	    	}
 	    }
     };
-    private Handler mHandler = new Handler(new Callback() {
-        public boolean handleMessage(Message msg) {
-        	int order = msg.getData().getInt("order");
-    		MyGpsLocation current = locationList.get(order);
-    		map.addCircle(new CircleOptions()
-				.center(new LatLng(current.latitude, current.longitude))
-    			.fillColor(Color.YELLOW)
-    			.strokeColor(0xddffff00)
-    			.radius(3));
-        	if(order != 0) {
-        		MyGpsLocation past = locationList.get(order - 1);
-        		map.addPolyline(new PolylineOptions()
-        				.add(new LatLng(past.latitude, past.longitude), new LatLng(current.latitude, current.longitude))
-        				.width(10)
-        				.color(Color.YELLOW));
-        	}
-        	
-        	if(order == locationList.size())
-        		Toast.makeText(GPSMapActivity.this, "重绘完成", Toast.LENGTH_SHORT).show();
-            return true;
-        }
-    });
 
 	//RefreshService关联
-    private MainService mService;
+    @SuppressWarnings("unused")
+	private MainService mService;
     private LocalBinder serviceBinder;
     private ServiceConnection mConnection = new ServiceConnection() {
         @Override
@@ -101,25 +80,6 @@ public class GPSMapActivity extends Activity {
                 IBinder service) {
         		serviceBinder = (LocalBinder)service;
                 mService = serviceBinder.getService();
-                double latitude = mService.getLatitude();
-                double longitude = mService.getLongitude();
-                if (latitude == 0 || longitude == 0) {
-                	return;
-                } else {
-                	location.setLatitude(latitude);
-                	location.setLongitude(longitude);
-    		        map.clear();
-    		        //添加地图标记，设置经纬度。设置点击标记显示的名称，信息，图片
-    		        map.addMarker(new MarkerOptions()
-    		        .position(new LatLng(location.getLatitude(), location.getLongitude()))
-    		        .title("我的位置"));
-    		        if (firstTime) {
-    			        map.moveCamera(CameraUpdateFactory.zoomTo(18));
-    		        	map.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
-    		        	firstTime = false;
-    		        }
-                }
-                	
         }
 
         @Override
@@ -163,6 +123,19 @@ public class GPSMapActivity extends Activity {
 		unbindService(mConnection);
 	}
 
+	private static double calculateDistance(LatLng l1, LatLng l2) {
+		/*
+		 * 纬度1度 = 大约111km
+		 * 纬度1分 = 大约1.85km
+		 * 纬度1秒 = 大约30.9m 
+		 * 200m 约等于 0.002
+		 * 50m 约等于 0.0005
+		*/
+		double delLat = l1.latitude - l2.latitude;
+		double delLng = l1.longitude - l2.longitude;
+		double distance = Math.pow(Math.pow(delLat, 2) + Math.pow(delLng, 2), 0.5);
+		return distance;
+	}
 	//将触摸事件交给mGestureDetector处理，否则无法识别
 	@Override
 	public boolean dispatchTouchEvent(MotionEvent ev) {
@@ -238,64 +211,7 @@ public class GPSMapActivity extends Activity {
 		return true;
 	}
 	
-	public void showLocation(View view) {
-		map.clear();
-		showLocationFlag = true;
-		locationList = mService.loadLocation();
-
-        map.moveCamera(CameraUpdateFactory.zoomTo(18));
-    	map.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(locationList.get(0).latitude, locationList.get(0).longitude)));
-
-    	if(drawLocationThread != null)
-    		drawLocationThread.interrupt();
-		drawLocationThread = new Thread() {
-			@Override
-			public void run() {
-				long time = System.currentTimeMillis();
-				int order = 0;
-				for (MyGpsLocation i : locationList) {
-					while(System.currentTimeMillis() - time < i.time);
-					Message msg = mHandler.obtainMessage();
-					Bundle data = new Bundle();
-					data.putInt("order", order);
-					msg.setData(data);
-					mHandler.sendMessage(msg);
-					order++;
-				}
-			}
-		};
-		Toast.makeText(this, "开始重绘", Toast.LENGTH_SHORT).show();
-		drawLocationThread.start();
-	}
-	
-	public void saveLocation(View view) {
-		if(!MainService.hasSdcard()) {
-			Toast.makeText(this, "未找到sdcard，储存失败", Toast.LENGTH_SHORT).show();
-			return;
-		}
-	
-		File file = new File(MainService.FILEDIR + "location_list.txt");
-		if (file.exists()){
-			AlertDialog dialog = new AlertDialog.Builder(this)
-				.setTitle("记录已存在")
-				.setMessage("是否覆盖？")
-				.setPositiveButton("是", new OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						mService.saveLocation();
-					}
-				})
-				.setNegativeButton("否", new OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						dialog.dismiss();
-					}
-				})
-				.create();
-			dialog.show();
-		} else {
-			mService.saveLocation();
-		}
-		
+	private void log(String log) {
+		Log.v(TAG, log + "\n");
 	}
 } 
