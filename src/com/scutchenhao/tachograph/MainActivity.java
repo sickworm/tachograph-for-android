@@ -163,7 +163,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 				long arg3) {
 			Spinner recordProfile = (Spinner) preferenceView.findViewById(R.id.profile_select);
 			Spinner recordStorage = (Spinner) preferenceView.findViewById(R.id.storage_select);
-			Spinner recordQuality = (Spinner) preferenceView.findViewById(R.id.time_select);
+			Spinner recordQuality = (Spinner) preferenceView.findViewById(R.id.quality_select);
 			int pos = recordProfile.getSelectedItemPosition();
 			int videoBitRate = profileList.get(pos).videoBitRate;
 			int audioBitRate = profileList.get(pos).audioBitRate;
@@ -430,7 +430,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
         
         CamcorderProfile profile = profileList.get(profileSettingPos);
-        int bitRate = profile.videoBitRate * (qualitySetting / 100);
+        int bitRate = profile.videoBitRate * qualitySetting / 100;
         log("录像分辨率：" + widthSetting + "x" + heightSetting, LOG_SHOW_TEXT);
         log("录像分段时长：" + (timeSetting/60) + "分钟", LOG_SHOW_TEXT);
         log("录像比特率：" + bitRate, LOG_SHOW_TEXT);

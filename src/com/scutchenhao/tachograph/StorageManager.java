@@ -89,14 +89,18 @@ public class StorageManager {
 
 		if (afterRecording) {
 			checkAvailStorage();
-			while (availStorage + remainStorage >= storage) {
+	        log(" £”‡ø’º‰:"+ availStorage +"MB");
+			while (availStorage + remainStorage <= storage) {
 				File file = findOldestFile(new File(ROOT_PATH));
-				if(file == null)
+				if(file == null) {	
 					return STORAGE_NOT_ENOUGH;
-				else
+				} else {
+					log("ø’º‰≤ª◊„£¨…æ≥˝Œƒº˛£∫" + file.getName());
 					file.delete();
+				}
 				checkAvailStorage();
 			}
+	        log(" £”‡ø’º‰:"+ availStorage +"MB");
 			fileScan(fileName);
 		}
 		return ret;
@@ -127,9 +131,11 @@ public class StorageManager {
 	}
 	
 	private long fileNameToNumber(File file) {
-		String fileName = file.getPath();
-		fileName = fileName.substring(fileName.lastIndexOf('/') + 1);
-		fileName = fileName.substring(0, fileName.indexOf('.'));
+		String fileName = file.getName();
+		int classIndex = fileName.indexOf('.');
+		if(classIndex <= 0)
+			return -1;					//delete the unformat file first
+		fileName = fileName.substring(0, classIndex);
 		fileName = fileName.replace("-", "");
 		fileName = fileName.replace(":", "");
 		try {
@@ -197,7 +203,6 @@ public class StorageManager {
             availCount = sf.getAvailableBlocksLong();
         }
         availStorage = availCount * blockSize / 1024 / 1024;
-        log(" £”‡ø’º‰:"+ availStorage +"MB");
     }
     
     private long getFileSizes(File f, boolean type) throws Exception
