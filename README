@@ -1,1 +1,13 @@
-an Android app for tachograph
+# An Android tachograph app
+
+This is a tachograph appplication for Android devices which has finished developing in 2014.
+
+The application will using Google Map V2 as map implement, which is bandoned and unavailable now. You should refactor it using Google Map v3 if needed.
+
+#Feature:
+
+1. Driving recording
+2. Driving path recording and sharing with families(real-time) (server unavialable now)
+3. Automatically take pictures when there is a accident(acceleration detection)
+
+# Hope it has some helps and GOOD LUCK
