@@ -2,7 +2,7 @@
 
 This is a tachograph appplication for Android devices which has finished developing in 2014.
 
-The application will using Google Map V2 as map implement, which is bandoned and unavailable now. You should refactor it using Google Map v3 if needed.
+The application will using Google Map V2 as map implement, which is abandoned and unavailable now. You should refactor it using Google Map v3 if needed.
 
 #Feature:
 
